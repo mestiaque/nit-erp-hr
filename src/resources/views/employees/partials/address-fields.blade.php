@@ -1,0 +1,24 @@
+@php
+    $districtNames = collect($options['districts'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();
+    $thanaNames = collect($options['thanas'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();
+    $permanentDistrict = old('permanent_district', $employee->permanent_district);
+    $permanentUpazila = old('permanent_upazila', $employee->permanent_upazila);
+    $permanentPostOffice = old('permanent_post_office', $employee->permanent_post_office);
+    $presentDistrict = old('present_district', $employee->present_district);
+    $presentUpazila = old('present_upazila', $employee->present_upazila);
+    $presentPostOffice = old('present_post_office', $employee->present_post_office);
+@endphp
+
+<div class="row">
+    <div class="col-12"><h6 class="mb-2">Permanent Address</h6></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="permanent_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentDistrict) && !in_array((string) $permanentDistrict, $districtNames, true))<option value="{{ $permanentDistrict }}" selected>{{ $permanentDistrict }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Po. Station</label><select name="permanent_upazila" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentUpazila === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentUpazila) && !in_array((string) $permanentUpazila, $thanaNames, true))<option value="{{ $permanentUpazila }}" selected>{{ $permanentUpazila }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><select name="permanent_post_office" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentPostOffice === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentPostOffice) && !in_array((string) $permanentPostOffice, $thanaNames, true))<option value="{{ $permanentPostOffice }}" selected>{{ $permanentPostOffice }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Village</label><input type="text" name="permanent_village" value="{{ old('permanent_village', $employee->permanent_village) }}" class="form-control form-control-sm"></div>
+
+    <div class="col-12 mt-2"><h6 class="mb-2">Present Address</h6></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="present_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentDistrict) && !in_array((string) $presentDistrict, $districtNames, true))<option value="{{ $presentDistrict }}" selected>{{ $presentDistrict }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Po. Station</label><select name="present_upazila" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentUpazila === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentUpazila) && !in_array((string) $presentUpazila, $thanaNames, true))<option value="{{ $presentUpazila }}" selected>{{ $presentUpazila }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><select name="present_post_office" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentPostOffice === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentPostOffice) && !in_array((string) $presentPostOffice, $thanaNames, true))<option value="{{ $presentPostOffice }}" selected>{{ $presentPostOffice }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Village</label><input type="text" name="present_village" value="{{ old('present_village', $employee->present_village) }}" class="form-control form-control-sm"></div>
+</div>

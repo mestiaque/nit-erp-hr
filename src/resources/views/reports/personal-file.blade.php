@@ -1,0 +1,174 @@
+@extends('admin.layouts.app')
+
+@section('title')
+<title>{{ $reportTitle }}</title>
+@endsection
+
+@section('contents')
+<div class="flex-grow-1 p-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">{{ $reportTitle }}</h4>
+            <a href="{{ route('hr-center.reports.index') }}" class="btn btn-light btn-sm">Back</a>
+        </div>
+
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-12 mb-3">
+                    <div class="border rounded p-3">
+                        <form method="get" action="{{ route('hr-center.reports.show', $reportKey) }}" target="_self">
+                            <div class="row">
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Employee ID(s) (,)</label>
+                                    <input type="text" name="employee_ids" class="form-control form-control-sm" value="{{ $request->employee_ids }}" placeholder="EMP001,EMP002">
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">From</label>
+                                    <input type="date" name="from" class="form-control form-control-sm" value="{{ $request->from }}">
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">To</label>
+                                    <input type="date" name="to" class="form-control form-control-sm" value="{{ $request->to }}">
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Classification</label>
+                                    <select name="classification" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['classifications'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->classification === (string) $item->id)>{{ $item->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Department</label>
+                                    <select name="department" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['departments'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->department === (string) $item->id)>{{ $item->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Section</label>
+                                    <select name="section" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['sections'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->section === (string) $item->id)>{{ $item->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Subsection</label>
+                                    <select name="subsection" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['subsections'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->subsection === (string) $item->id)>{{ $item->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Shift</label>
+                                    <select name="shift" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['shifts'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->shift === (string) $item->id)>{{ $item->name_of_shift }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Working Place</label>
+                                    <select name="working_place" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        @foreach($options['workingPlaces'] as $item)
+                                            <option value="{{ $item->id }}" @selected((string) $request->working_place === (string) $item->id)>{{ $item->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Employee Status</label>
+                                    <select name="employee_status" class="form-control form-control-sm">
+                                        <option value="">All</option>
+                                        <option value="regular" @selected($request->employee_status === 'regular')>Regular</option>
+                                        <option value="lefty" @selected($request->employee_status === 'lefty')>Lefty</option>
+                                        <option value="resign" @selected($request->employee_status === 'resign')>Resign</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-2 col-md-3">
+                                    <label class="mb-1">Language</label>
+                                    <select name="language" class="form-control form-control-sm">
+                                        <option value="en" @selected(($request->language ?? 'en') === 'en')>English</option>
+                                        <option value="bn" @selected($request->language === 'bn')>Bangla</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3 col-md-3">
+                                    <label class="mb-1">Report Type</label>
+                                    <select name="report_type" class="form-control form-control-sm" required>
+                                        <option value="">Select</option>
+                                        @foreach($reportTypes as $key => $label)
+                                            <option value="{{ $key }}" @selected($request->report_type === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('report_type')
+                                        <small class="text-danger d-block">{{ $message }}</small>
+                                    @enderror
+                                </div>
+
+                                <div class="d-flex align-items-center mb-2 col-md-3 float-right">
+                                    <button type="submit" class="btn btn-secondary btn-sm w-100 mr-1">Filter</button>
+                                    <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm w-100">Reset</a>
+                                    <button type="submit" name="print" value="1" class="btn btn-primary btn-sm w-100 mr-1" formtarget="_blank">Print </button>
+                                </div>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-lg-12">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Employee ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Section</th>
+                                    <th>Shift</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($employees as $employee)
+                                    <tr>
+                                        <td>{{ $employee->employee_id }}</td>
+                                        <td>{{ $employee->name }}</td>
+                                        <td>{{ optional($employee->department)->name }}</td>
+                                        <td>{{ $employee->section_id }}</td>
+                                        <td>{{ $employee->shift_id }}</td>
+                                        <td>{{ ucfirst((string) ($employee->employment_status ?? 'regular')) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center">No employee found.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
