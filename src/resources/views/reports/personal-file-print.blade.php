@@ -185,7 +185,7 @@
     }
     .salary-table th,
     .salary-table td {
-        border: 1px solid #777;
+        border: none !important;
         padding: 4px 6px;
         font-size: 12px;
     }
@@ -206,6 +206,7 @@
         justify-content: space-between;
         font-size: 12px;
     }
+    td{border:none !important;}
 </style>
 @endpush
 
@@ -222,6 +223,10 @@
             return (string) $value;
         }
     };
+    // Fetch latest active factory
+    $factory = \ME\Hr\Models\Factory::where('status', 'active')->latest('id')->first();
+    // Fetch latest active salary key
+    $salaryKey = \ME\Hr\Models\SalaryKey::where('status', 'active')->latest('id')->first();
 @endphp
 
 @forelse($employees as $employee)
@@ -248,11 +253,6 @@
         @if($reportType === 'id-card')
             @include('hr::reports.partials.personal-file.id-card')
         @else
-            <div class="company-head">
-                <h3>{{ general()->title ?? 'Company Name' }}</h3>
-                <div>{{ general()->address_one ?? data_get(general(), 'address') }}</div>
-                <div class="mini-note">{{ $label('পার্সোনাল ফাইল প্রিন্ট কপি', 'Personal File Print Copy') }}</div>
-            </div>
 
             @include('hr::reports.partials.personal-file-report-blocks')
         @endif
