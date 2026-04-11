@@ -148,14 +148,17 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="col-md-3 align-self-end mb-3">
+                        <div class="">
+                            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+                            <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm">Reset</a>
+                            <button type="submit" name="print" value="1" class="btn btn-primary btn-sm" formtarget="_blank">Open Print</button>
+                            {{-- <span class="text-muted small align-self-center">No filter selected means all employees will be printed.</span> --}}
+                        </div>
+                    </div>
                 </div>
 
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-                    <button type="submit" name="print" value="1" class="btn btn-primary btn-sm" formtarget="_blank">Open Print</button>
-                    <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm">Reset</a>
-                    <span class="text-muted small align-self-center">No filter selected means all employees will be printed.</span>
-                </div>
+
             </form>
 
             <hr>

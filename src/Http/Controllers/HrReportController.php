@@ -575,6 +575,7 @@ class HrReportController extends Controller
         $reportTypes = [
             'database' => 'Database',
             'manpower-summary' => 'Manpower Summary',
+            'details' => 'Details',
         ];
         $language = $request->input('language', 'en');
 
@@ -584,6 +585,28 @@ class HrReportController extends Controller
                 $reportType = 'database';
             }
 
+            if ($reportType === 'database') {
+                return view('hr::reports.employee-database-print', [
+                    'employees' => $employees,
+                    'request' => $request,
+                    'options' => $options,
+                ]);
+            } elseif ($reportType === 'details') {
+                $detailsRows = $this->employeeDetailsRows($employees, $options);
+                return view('hr::reports.employee-details-print', [
+                    'detailsRows' => $detailsRows,
+                    'request' => $request,
+                    'options' => $options,
+                ]);
+            } elseif ($reportType === 'manpower-summary') {
+                $manpowerRows = $this->employeeManpowerSummaryRows($employees, $options);
+                return view('hr::reports.employee-manpower-print', [
+                    'manpowerRows' => $manpowerRows,
+                    'request' => $request,
+                    'options' => $options,
+                ]);
+            }
+            // fallback
             return view('hr::reports.employee-print', [
                 'employees' => $employees,
                 'request' => $request,
@@ -592,6 +615,7 @@ class HrReportController extends Controller
                 'reportTypeLabel' => $reportTypes[$reportType],
                 'language' => $language,
                 'manpowerRows' => $this->employeeManpowerSummaryRows($employees, $options),
+                'detailsRows' => null,
             ]);
         }
 
@@ -604,6 +628,64 @@ class HrReportController extends Controller
             'request' => $request,
             'language' => $language,
         ]);
+    }
+
+       /**
+     * Generate rows for the 'details' employee report type.
+     * Table header:
+     * S.L | Working Place | Emp. ID | Name | Join Date | Job Age | DOB | Age | Sex | Department | Section | Sub Section | Designation | Contact No. | Grade | Classification | Line/Block | Shift | WeekEnd | Gross Salary
+     */
+    private function employeeDetailsRows($employees, array $options)
+    {
+        $workingPlaceMap = collect($options['workingPlaces'] ?? [])->pluck('name', 'id');
+        $departmentMap = collect($options['departments'] ?? [])->pluck('name', 'id');
+        $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
+        $subSectionMap = collect($options['subSections'] ?? [])->pluck('name', 'id');
+        $designationMap = collect($options['designations'] ?? [])->pluck('name', 'id');
+        $gradeMap = \App\Models\Attribute::query()->pluck('name', 'id');
+        $classificationMap = collect($options['classifications'] ?? [])->pluck('name', 'id');
+        $lineMap = collect($options['lines'] ?? [])->mapWithKeys(fn ($row) => [
+            $row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : '')),
+        ]);
+        $shiftMap = \ME\Hr\Models\Shift::query()->pluck('name_of_shift', 'id');
+
+        $rows = collect();
+        $serial = 1;
+        foreach ($employees as $employee) {
+            $other = json_decode($employee->other_information ?? '{}', true);
+            $rows->push([
+                'sl' => $serial++,
+                'working_place' => $workingPlaceMap->get($employee->working_place_id, 'N/A'),
+                'name' => $employee->name,
+                'employee_id' => $employee->employee_id,
+                'join_date' => $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d-M-Y') : 'N/A',
+                'gross_salary' => (float) ($employee->gross_salary ?? 0),
+                'pay_mode' => $employee->salary_type ?? 'N/A',
+                'bank_mobile_no' => $employee->bank_account_no ?? $employee->mobile ?? 'N/A',
+                'car_fuel' => $employee->car_fuel ?? '0.00',
+                'phone_internet' => $employee->phone_internet ?? '0.00',
+                'extra_facility' => $employee->extra_facility ?? '0.00',
+                'tax' => $employee->tax ?? '0.00',
+                'classification' => $classificationMap->get($employee->employee_type, 'N/A'),
+                'department' => $departmentMap->get($employee->department_id, 'N/A'),
+                'section' => $sectionMap->get($employee->section_id, 'N/A'),
+                'sub_section' => $subSectionMap->get($employee->sub_section_id, 'N/A'),
+                'line_block' => $lineMap->get($employee->line_number, 'N/A'),
+                'designation' => $designationMap->get($employee->designation_id, 'N/A'),
+                'grade' => $gradeMap->get($employee->grade_lavel, 'N/A'),
+                'shift' => $shiftMap->get($employee->shift_id, 'N/A'),
+                'weekend' => $employee->weekend ?? 'N/A',
+                'personal_contact_no' => $employee->personal_contact_no ?? 'N/A',
+                'emergency_contact_no' => $employee->emergency_contact_no ?? 'N/A',
+                'father_name' => $employee->father_name ?? 'N/A',
+                'mother_name' => $employee->mother_name ?? 'N/A',
+                'marital_status' => $employee->marital_status ?? 'N/A',
+                'spouse_name' => $employee->spouse_name ?? 'N/A',
+                'sex' => $employee->gender ?? 'N/A',
+                'kids' => $employee->kids ?? 'N/A',
+            ]);
+        }
+        return $rows;
     }
 
     private function employeeReportQuery(Request $request)

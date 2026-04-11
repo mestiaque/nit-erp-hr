@@ -100,13 +100,16 @@
                         <label class="mb-1">Effective Date</label>
                         <input type="date" name="effective_date" class="form-control form-control-sm" value="{{ $effectiveDate }}">
                     </div>
+                    <div class="col-md-3 align-self-end mb-3">
+                        <div class="">
+                            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+                            <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm">Reset</a>
+                            <button type="submit" name="print" value="1" class="btn btn-primary btn-sm" formtarget="_blank">Open Print</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-                    <button type="submit" name="print" value="1" class="btn btn-primary btn-sm" formtarget="_blank">Open Print</button>
-                    <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm">Reset</a>
-                </div>
+
             </form>
         </div>
     </div>
