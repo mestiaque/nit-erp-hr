@@ -247,7 +247,7 @@ return [
                             'permission' => 'dev',
                         ],
                         [
-                            'title'      => 'Production Job Card',
+                            'title'      => 'Pro. Job Card',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/pro-job-card',
                             'icon_color' => 'text-warning',

@@ -7,18 +7,162 @@
     $presentDistrict = old('present_district', $employee->present_district);
     $presentUpazila = old('present_upazila', $employee->present_upazila);
     $presentPostOffice = old('present_post_office', $employee->present_post_office);
+
+    $permanentDistrictObj = collect($options['districts'] ?? [])->firstWhere('name', $permanentDistrict);
+    $permanentDistrictId = $permanentDistrictObj->id ?? null;
+
+    $presentDistrictObj = collect($options['districts'] ?? [])->firstWhere('name', $presentDistrict);
+    $presentDistrictId = $presentDistrictObj->id ?? null;
+
+    $permanentDistrictResult = collect($options['thanas'])->where('parent_id', $permanentDistrictId)->all();
+    $presentDistrictResult = collect($options['thanas'])->where('parent_id', $presentDistrictId)->all();
 @endphp
 
 <div class="row">
-    <div class="col-12"><h6 class="mb-2">Permanent Address</h6></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="permanent_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentDistrict) && !in_array((string) $permanentDistrict, $districtNames, true))<option value="{{ $permanentDistrict }}" selected>{{ $permanentDistrict }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Po. Station</label><select name="permanent_upazila" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentUpazila === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentUpazila) && !in_array((string) $permanentUpazila, $thanaNames, true))<option value="{{ $permanentUpazila }}" selected>{{ $permanentUpazila }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><select name="permanent_post_office" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $permanentPostOffice === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($permanentPostOffice) && !in_array((string) $permanentPostOffice, $thanaNames, true))<option value="{{ $permanentPostOffice }}" selected>{{ $permanentPostOffice }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Village</label><input type="text" name="permanent_village" value="{{ old('permanent_village', $employee->permanent_village) }}" class="form-control form-control-sm"></div>
 
-    <div class="col-12 mt-2"><h6 class="mb-2">Present Address</h6></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="present_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentDistrict) && !in_array((string) $presentDistrict, $districtNames, true))<option value="{{ $presentDistrict }}" selected>{{ $presentDistrict }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Po. Station</label><select name="present_upazila" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentUpazila === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentUpazila) && !in_array((string) $presentUpazila, $thanaNames, true))<option value="{{ $presentUpazila }}" selected>{{ $presentUpazila }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><select name="present_post_office" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $presentPostOffice === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($presentPostOffice) && !in_array((string) $presentPostOffice, $thanaNames, true))<option value="{{ $presentPostOffice }}" selected>{{ $presentPostOffice }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Village</label><input type="text" name="present_village" value="{{ old('present_village', $employee->present_village) }}" class="form-control form-control-sm"></div>
+    {{-- ================= PERMANENT ADDRESS ================= --}}
+    <div class="col-12">
+        <h6 class="mb-2">Permanent Address</h6>
+    </div>
+    {{-- District --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">District</label>
+        <select name="permanent_district" id="permanent_district" class="form-control form-control-sm">
+            <option value="">Select</option>
+
+            @foreach(($options['districts'] ?? []) as $row)
+                <option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $permanentDistrict === (string) $row->name)> {{ $row->name }} </option>
+            @endforeach
+
+            @if(!empty($permanentDistrict) && !in_array((string) $permanentDistrict, $districtNames, true))
+                <option value="{{ $permanentDistrict }}" selected> {{ $permanentDistrict }} </option>
+            @endif
+        </select>
+    </div>
+
+    {{-- Upazila / Thana --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Po. Station</label>
+        <select name="permanent_upazila" class="form-control form-control-sm">
+            <option value="">Select</option>
+
+            @foreach($permanentDistrictResult as $row)
+                <option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $permanentUpazila === (string) $row->name)> {{ $row->name }} </option>
+            @endforeach
+
+            @if(!empty($permanentUpazila) && !in_array((string) $permanentUpazila, $thanaNames, true))
+                <option value="{{ $permanentUpazila }}" selected> {{ $permanentUpazila }} </option>
+            @endif
+        </select>
+    </div>
+
+    {{-- Post Office (INPUT) --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Post Office</label>
+        <input type="text" name="permanent_post_office" value="{{ old('permanent_post_office', $permanentPostOffice) }}" class="form-control form-control-sm">
+    </div>
+
+    {{-- Village --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Village</label>
+        <input type="text" name="permanent_village" value="{{ old('permanent_village', $employee->permanent_village) }}" class="form-control form-control-sm">
+    </div>
+
+
+    {{-- ================= PRESENT ADDRESS ================= --}}
+    <div class="col-12 mt-2">
+        <h6 class="mb-2">Present Address</h6>
+    </div>
+    {{-- District --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">District</label>
+        <select name="present_district" id="present_district" class="form-control form-control-sm">
+            <option value="">Select</option>
+
+            @foreach(($options['districts'] ?? []) as $row)
+                <option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $presentDistrict === (string) $row->name)> {{ $row->name }} </option>
+            @endforeach
+
+            @if(!empty($presentDistrict) && !in_array((string) $presentDistrict, $districtNames, true))
+                <option value="{{ $presentDistrict }}" selected> {{ $presentDistrict }} </option>
+            @endif
+        </select>
+    </div>
+    {{-- Upazila / Thana --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Po. Station</label>
+        <select name="present_upazila" class="form-control form-control-sm">
+            <option value="">Select</option>
+
+            @foreach($presentDistrictResult as $row)
+                <option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $presentUpazila === (string) $row->name)> {{ $row->name }} </option>
+            @endforeach
+
+            @if(!empty($presentUpazila) && !in_array((string) $presentUpazila, $thanaNames, true))
+                <option value="{{ $presentUpazila }}" selected> {{ $presentUpazila }} </option>
+            @endif
+        </select>
+    </div>
+
+    {{-- Post Office (INPUT) --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Post Office</label>
+        <input type="text" name="present_post_office" value="{{ old('present_post_office', $presentPostOffice) }}" class="form-control form-control-sm">
+    </div>
+
+    {{-- Village --}}
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Village</label>
+        <input type="text" name="present_village" value="{{ old('present_village', $employee->present_village) }}" class="form-control form-control-sm">
+    </div>
+
 </div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+function loadThanas(districtIdSelector, thanaSelector) {
+
+    $(districtIdSelector).on('change', function () {
+
+        let districtId = $(this).find(':selected').data('id');
+
+        let $thanaSelect = $(thanaSelector);
+
+        if (!districtId) {
+            $thanaSelect.html('<option value="">Select</option>');
+            return;
+        }
+
+        $thanaSelect.html('<option value="">Loading...</option>');
+
+        $.ajax({
+            url: '/thanas/by-district/' + districtId,
+            type: 'GET',
+            success: function (data) {
+
+                $thanaSelect.html('<option value="">Select</option>');
+
+                $.each(data, function (index, thana) {
+                    $thanaSelect.append(
+                        $('<option>', {
+                            value: thana.name,
+                            text: thana.name
+                        })
+                    );
+                });
+
+            },
+            error: function () {
+                $thanaSelect.html('<option value="">Error loading data</option>');
+            }
+        });
+
+    });
+}
+
+// init
+loadThanas('#permanent_district', 'select[name="permanent_upazila"]');
+loadThanas('#present_district', 'select[name="present_upazila"]');
+</script>

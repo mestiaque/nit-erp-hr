@@ -16,6 +16,7 @@ use ME\Hr\Models\Shift;
 use ME\Hr\Models\SubSection;
 use ME\Hr\Models\WorkingPlace;
 use App\Models\Attribute;
+use PHPUnit\Util\PHP\Job;
 
 class HrReportController extends Controller
 {
@@ -891,7 +892,7 @@ class HrReportController extends Controller
         // ID card should skip placeholder IDs but must not hide valid employees
         // just because designation/department is missing.
         if ((string) $request->input('report_type') === 'id-card') {
-            $query->where('employee_id', '<>', '00000');
+            // $query->where('employee_id', '<>', '00000');
         }
 
         if ($request->filled('employee_id')) {
@@ -1271,3 +1272,8 @@ class HrReportController extends Controller
         return [['department', 'total_employee', 'gross_salary', 'basic_salary'], $rows];
     }
 }
+
+
+
+
+

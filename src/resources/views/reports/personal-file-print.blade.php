@@ -37,7 +37,7 @@
         width: 5.4cm;
         height: 8.56cm;
         margin: 0 auto 6mm;
-        padding: 3mm;
+        padding: 1mm;
         box-sizing: border-box;
         background: #fff;
         overflow: hidden;
@@ -55,20 +55,20 @@
         object-fit: contain;
     }
     .id-card-company {
-        margin: 1mm 0 0.5mm;
+        margin: 0.2mm 0 0.5mm;
         text-align: center;
-        font-size: 6mm;
+        font-size: 4.2mm;
     }
     .id-card-address {
         margin: 0;
         text-align: center;
-        font-size: 3mm;
+        font-size: 2.2mm;
     }
     .id-card-strip {
-        margin-top: 2mm;
-        background: #b9e7ed;
+        margin-top: 1.2mm;
+        background: #ec682c91;
         text-align: center;
-        font-size: 4.4mm;
+        font-size: 3mm;
         font-weight: 700;
         padding: 0.7mm;
     }
@@ -78,23 +78,24 @@
     }
     .id-card-photo-wrap {
         text-align: center;
-        margin: 1.5mm 0;
+        margin: 1mm 0;
     }
     .id-card-photo {
-        width: 18mm;
-        height: 21mm;
+        width: 17mm;
+        height: 20mm;
         object-fit: cover;
         border: 1px solid #666;
     }
     .id-card-info {
         width: 100%;
         border-collapse: collapse;
-        font-size: 3.9mm;
+        font-size: 2.9mm !important;
         line-height: 1.25;
     }
     .id-card-info td {
         padding: 0;
         vertical-align: top;
+        font-size: 2.98mm !important;
     }
     .id-card-info td:first-child {
         width: 28%;
@@ -107,12 +108,12 @@
         gap: 6mm;
     }
     .id-sign-line {
-        width: 25mm;
+        width: 20mm;
         border-top: 1px dotted #222;
         margin-bottom: 0.5mm;
     }
     .id-sign-label {
-        font-size: 3mm;
+        font-size: 2mm;
         text-align: center;
     }
     .id-back-head {
@@ -186,7 +187,7 @@
     .salary-table th,
     .salary-table td {
         border: none !important;
-        padding: 4px 6px;
+        padding: 1px 1px;
         font-size: 12px;
     }
     .salary-table th {

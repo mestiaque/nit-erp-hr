@@ -8,6 +8,15 @@
 @php($nomineePoStation = old('nominee_po_station', data_get($nomineeInfo, 'nominee_po_station')))
 @php($nomineePostOffice = old('nominee_post_office', data_get($nomineeInfo, 'nominee_post_office')))
 @php($nomineeNationality = old('nominee_nationality', data_get($nomineeInfo, 'nominee_nationality')))
+@php($nomineeVillage = old('nominee_village', data_get($nomineeInfo, 'nominee_village')))
+@php($nomineeNid = old('nominee_nid', data_get($nomineeInfo, 'nominee_nid')))
+@php($nomineeMobile = old('nominee_mobile', data_get($nomineeInfo, 'nominee_mobile')))
+@php($nomineeRelation = old('nominee_relation', data_get($nomineeInfo, 'nominee_relation')))
+@php($nomineeAge = old('nominee_age', data_get($nomineeInfo, 'nominee_age')))
+@php($nomineeDistrictObj = collect($options['districts'] ?? [])->firstWhere('name', $nomineeDistrict))
+@php($nomineeDistrictId = $nomineeDistrictObj->id ?? null)
+@php($nomineeThanaResult = collect($options['thanas'])->where('parent_id', $nomineeDistrictId)->all())
+
 <div class="row">
     <div class="col-md-6 mb-2">
         <label class="mb-1">Nominee Photo</label>
@@ -16,14 +25,25 @@
         <img id="nominee_preview_{{ $employee->id ?? 'new' }}" src="{{ $nomineeImage ? asset($nomineeImage) : '' }}" alt="Nominee Photo" style="width:50px;height:50px;object-fit:cover;border:1px solid #ddd;margin-top:6px;{{ $nomineeImage ? '' : 'display:none;' }}">
     </div>
     <div class="col-md-6 mb-2"><label class="mb-1">Nominee Name</label><input type="text" name="nominee" value="{{ old('nominee', $employee->nominee) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="nominee_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $nomineeDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($nomineeDistrict) && !in_array((string) $nomineeDistrict, $districtNames, true))<option value="{{ $nomineeDistrict }}" selected>{{ $nomineeDistrict }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Po. Station</label><select name="nominee_po_station" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $nomineePoStation === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($nomineePoStation) && !in_array((string) $nomineePoStation, $thanaNames, true))<option value="{{ $nomineePoStation }}" selected>{{ $nomineePoStation }}</option>@endif</select></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><select name="nominee_post_office" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['thanas'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $nomineePostOffice === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($nomineePostOffice) && !in_array((string) $nomineePostOffice, $thanaNames, true))<option value="{{ $nomineePostOffice }}" selected>{{ $nomineePostOffice }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">District</label><select name="nominee_district" id="nominee_district" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['districts'] ?? []) as $row)<option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $nomineeDistrict === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($nomineeDistrict) && !in_array((string) $nomineeDistrict, $districtNames, true))<option value="{{ $nomineeDistrict }}" selected>{{ $nomineeDistrict }}</option>@endif</select></div>
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Po. Station</label>
+        <select name="nominee_po_station" id="nominee_po_station" class="form-control form-control-sm">
+            <option value="">Select</option>
+            @foreach($nomineeThanaResult as $row)
+                <option value="{{ $row->name }}" data-id="{{ $row->id }}" @selected((string) $nomineePoStation === (string) $row->name)> {{ $row->name }} </option>
+            @endforeach
+            @if(!empty($nomineePoStation) && !in_array((string) $nomineePoStation, $thanaNames, true))
+                <option value="{{ $nomineePoStation }}" selected> {{ $nomineePoStation }} </option>
+            @endif
+        </select>
+    </div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Post Office</label><input type="text" name="nominee_post_office" value="{{ old('nominee_post_office', data_get($nomineeInfo, 'nominee_post_office')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-6 mb-2"><label class="mb-1">Country/Nationality</label><select name="nominee_nationality" class="form-control form-control-sm"><option value="">Select</option>@foreach(($options['countries'] ?? []) as $row)<option value="{{ $row->name }}" @selected((string) $nomineeNationality === (string) $row->name)>{{ $row->name }}</option>@endforeach @if(!empty($nomineeNationality) && !in_array((string) $nomineeNationality, $countryNames, true))<option value="{{ $nomineeNationality }}" selected>{{ $nomineeNationality }}</option>@endif</select></div>
     <div class="col-md-6 mb-2"><label class="mb-1">Village</label><input type="text" name="nominee_village" value="{{ old('nominee_village', data_get($nomineeInfo, 'nominee_village')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-6 mb-2"><label class="mb-1">NID No.</label><input type="text" name="nominee_nid" value="{{ old('nominee_nid', data_get($nomineeInfo, 'nominee_nid')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-6 mb-2"><label class="mb-1">Mobile No.</label><input type="text" name="nominee_mobile" value="{{ old('nominee_mobile', data_get($nomineeInfo, 'nominee_mobile')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Relation</label><input type="text" name="nominee_relation" value="{{ old('nominee_relation', $employee->nominee_relation) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Relation</label><input type="text" name="nominee_relation" list="relationList" value="{{ old('nominee_relation', $employee->nominee_relation) }}" class="form-control form-control-sm" placeholder="Select or enter"><datalist id="relationList"><option value="Father"><option value="Mother"><option value="Brother"><option value="Sister"><option value="Husband"><option value="Wife"><option value="Son"><option value="Daughter"></datalist></div>
     <div class="col-md-6 mb-2"><label class="mb-1">Age</label><input type="number" name="nominee_age" value="{{ old('nominee_age', $employee->nominee_age) }}" class="form-control form-control-sm"></div>
 
     <div class="col-12 mt-2"><h6 class="mb-2">Payment Distribution (%)</h6></div>
@@ -35,13 +55,48 @@
     <div class="col-md-4 mb-2"><label class="mb-1">Others</label><input type="number" step="0.01" name="distribution_others" value="{{ old('distribution_others', data_get($nomineeInfo, 'distribution_others')) }}" class="form-control form-control-sm"></div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-function previewNomineeImage_{{ $employee->id ?? 'new' }}(input) {
-    var preview = document.getElementById('nominee_preview_{{ $employee->id ?? 'new' }}');
-    if (!preview || !input.files || !input.files[0]) {
-        return;
-    }
-    preview.src = URL.createObjectURL(input.files[0]);
-    preview.style.display = 'inline-block';
+function loadThanas(districtIdSelector, thanaSelector) {
+
+    $(districtIdSelector).on('change', function () {
+
+        let districtId = $(this).find(':selected').data('id');
+
+        let $thanaSelect = $(thanaSelector);
+
+        if (!districtId) {
+            $thanaSelect.html('<option value="">Select</option>');
+            return;
+        }
+
+        $thanaSelect.html('<option value="">Loading...</option>');
+
+        $.ajax({
+            url: '/thanas/by-district/' + districtId,
+            type: 'GET',
+            success: function (data) {
+
+                $thanaSelect.html('<option value="">Select</option>');
+
+                $.each(data, function (index, thana) {
+                    $thanaSelect.append(
+                        $('<option>', {
+                            value: thana.name,
+                            text: thana.name
+                        })
+                    );
+                });
+
+            },
+            error: function () {
+                $thanaSelect.html('<option value="">Error loading data</option>');
+            }
+        });
+
+    });
 }
+
+// init
+loadThanas('#nominee_district', 'select[name="nominee_po_station"]');
 </script>

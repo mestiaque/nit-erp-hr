@@ -10,6 +10,7 @@ use ME\Hr\Http\Controllers\HrReportController;
 $route = config('hr.route');
 
 Route::middleware(['web'])->get('/hr', [HrController::class, 'index']);
+Route::get('/thanas/by-district/{id}', [HrController::class, 'getThanasByDistrict']);
 
 Route::middleware($route['middleware'] ?? ['web'])
 	->prefix($route['prefix'] ?? 'admin/hr-center')

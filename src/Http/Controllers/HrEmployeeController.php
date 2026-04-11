@@ -1116,7 +1116,7 @@ class HrEmployeeController extends Controller
             'shifts' => Shift::orderBy('name_of_shift')->get(['id', 'name_of_shift']),
             'countries' => Country::where('type', 1)->orderBy('name')->get(['id', 'name']),
             'districts' => Country::where('type', 3)->orderBy('name')->get(['id', 'name']),
-            'thanas' => Country::where('type', 4)->orderBy('name')->get(['id', 'name']),
+            'thanas' => Country::where('type', 4)->orderBy('name')->get(['id', 'parent_id', 'name']),
         ];
     }
 
