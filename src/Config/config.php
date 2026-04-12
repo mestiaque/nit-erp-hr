@@ -336,11 +336,12 @@ return [
         'sections' => [
             'title' => 'Section',
             'model' => Attribute::class,
-            'search' => ['name'],
+            'search' => ['name', 'bn_name'],
             'defaults' => ['type' => 29, 'status' => 'active'],
-            'index_fields' => ['name', 'parent_id', 'status'],
+            'index_fields' => ['name', 'bn_name', 'parent_id', 'status'],
             'fields' => [
                 'name' => ['label' => 'Name', 'type' => 'text', 'rules' => 'required|string|max:191'],
+                'bn_name' => ['label' => 'Bangla Name', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
                 'parent_id' => ['label' => 'Department', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'department']],
                 'description' => ['label' => 'Description', 'type' => 'textarea', 'rules' => 'nullable|string'],
                 'status' => ['label' => 'Status', 'type' => 'select', 'rules' => 'required|in:active,inactive', 'options' => ['active' => 'Active', 'inactive' => 'Inactive']],
@@ -349,11 +350,12 @@ return [
         'sub-sections' => [
             'title' => 'Sub Section',
             'model' => SubSection::class,
-            'search' => ['name'],
+            'search' => ['name', 'bn_name'],
             'defaults' => ['status' => 'active'],
-            'index_fields' => ['name', 'department_id', 'section_id', 'salary_type', 'status'],
+            'index_fields' => ['name', 'bn_name', 'department_id', 'section_id', 'salary_type', 'status'],
             'fields' => [
                 'name' => ['label' => 'Name', 'type' => 'text', 'rules' => 'required|string|max:191'],
+                'bn_name' => ['label' => 'Bangla Name', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
                 'department_id' => ['label' => 'Department', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'department']],
                 'section_id' => ['label' => 'Section', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'sections']],
                 'salary_type' => ['label' => 'Salary Type', 'type' => 'select', 'rules' => 'required|in:price_rate,fixed_rate', 'options' => ['price_rate' => 'Price Rate', 'fixed_rate' => 'Fixed Rate']],
