@@ -226,6 +226,7 @@
                                     <a href="{{ route('hr-center.employees.increments.page', $employee->id) }}" class="btn-custom" title="Salary Increment Info"><i class="fa-solid fa-arrow-trend-up"></i></a>
                                     <a href="{{ route('hr-center.employees.earnings.page', $employee->id) }}" class="btn-custom" title="Earnings &amp; Deductions"><i class="fa-solid fa-scale-balanced"></i></a>
                                     <a href="{{ route('hr-center.employees.leaves.page', $employee->id) }}" class="btn-custom" title="Leave Table"><i class="fa-solid fa-calendar-days"></i></a>
+                                    <form method="post" action="{{ route('hr-center.employees.destroy', $employee->id) }}" style="display:inline" class="no-loader">@csrf @method('delete')<button type="button" class="btn-custom text-danger" title="Delete Employee" style="background:none;border:none;padding:3px 5px;" onclick="if(confirm('Are you sure you want to delete this employee?')){if(typeof XLoader!=='undefined')XLoader.show();this.closest('form').submit();}"><i class="fa-solid fa-trash"></i></button></form>
                                 </td>
                             </tr>
                         @empty
@@ -241,7 +242,7 @@
 </div>
 
 <div class="modal fade" id="CreateEmployeeModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <form method="post" action="{{ route('hr-center.employees.store') }}">
                 @csrf
@@ -263,7 +264,7 @@
 
 @foreach($employees as $employee)
 <div class="modal fade" id="EditEmployeeModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <form method="post" action="{{ route('hr-center.employees.profile.update', $employee->id) }}" enctype="multipart/form-data">
                 @csrf
@@ -328,7 +329,7 @@
 </div>
 
 <div class="modal fade" id="BasicInfoModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.basic-info.update', $employee->id) }}">@csrf @method('put')
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.basic-info.update', $employee->id) }}">@csrf @method('put')
         <div class="modal-header"><h5 class="modal-title">Basic Info — {{ $employee->name }}</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
         <div class="modal-body">@include('hr::employees.partials.basic-info-fields', ['employee' => $employee, 'basicInfoOptions' => $basicInfoOptions ?? []])</div>
         <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>

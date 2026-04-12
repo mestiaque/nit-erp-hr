@@ -1136,6 +1136,14 @@ class HrEmployeeController extends Controller
             ->first(['id', 'name', 'code', 'days']);
     }
 
+    public function destroy(User $employee): RedirectResponse
+    {
+        $this->ensureEmployee($employee);
+        $employee->delete();
+
+        return redirect()->route('hr-center.employees.index')->with('success', 'Employee deleted successfully.');
+    }
+
     private function ensureEmployee(User $employee): void
     {
         abort_unless(
