@@ -1,8 +1,8 @@
 @if(!empty($nominee) || filled($employee->nominee) || filled($employee->nominee_relation) || filled($employee->nominee_age))
 @php
   $general = general();
-  $companyName = $general->title ?? config('company.name', '');
-  $companyAddress = $general->address_one ?? data_get($general, 'address') ?? config('company.address', '');
+  $companyName = hr_factory('bn_name');
+  $companyAddress = hr_factory('bn_address');
   $designation = optional($employee->designation)->name ?? data_get($employee, 'designation_name', '');
   $qualification = data_get($employee, 'qualification', data_get($profile, 'qualification', ''));
   $nomineeName = data_get($employee, 'nominee', data_get($nominee, 'nominee', ''));

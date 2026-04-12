@@ -57,7 +57,7 @@
     .id-card-company {
         margin: 0.2mm 0 0.5mm;
         text-align: center;
-        font-size: 4.2mm;
+        font-size: 3.9mm;
     }
     .id-card-address {
         margin: 0;
@@ -95,7 +95,7 @@
     .id-card-info td {
         padding: 0;
         vertical-align: top;
-        font-size: 2.98mm !important;
+        font-size: 2.8mm !important;
     }
     .id-card-info td:first-child {
         width: 28%;

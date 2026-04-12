@@ -38,7 +38,7 @@
 	width: 120px;
 	height: 120px;
 	object-fit: cover;
-	border: 1px solid #888;
+	border: 1px solid #888 !important;
 	margin-bottom: 8px;
 }
 .age-verification-main-table {
@@ -46,10 +46,10 @@
 	border-collapse: collapse;
 	font-size: 15px;
 	margin-bottom: 18px;
-	border: 2px solid #222;
+	border: 2px solid #222 !important;
 }
 .age-verification-main-table td, .age-verification-main-table th {
-	border: 1.5px solid #222;
+	border: 1.5px solid #222 !important;
 	padding: 6px 8px;
 	vertical-align: top;
 }
@@ -63,7 +63,7 @@
 	width: 100%;
 }
 .age-verification-main-table table td {
-	border: 1px solid #222;
+	border: 1px solid #222 !important;
 	padding: 4px 6px;
 }
 .age-verification-footer-table {

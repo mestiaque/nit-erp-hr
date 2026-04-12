@@ -21,7 +21,8 @@ class HrMasterController extends Controller
         $useModalForm = count($config['fields'] ?? []) <= 8;
 
         foreach (($config['defaults'] ?? []) as $column => $value) {
-            if ($column === 'name') {
+            // Keep index flexible: status should be user-driven from filter dropdown.
+            if ($column === 'name' || $column === 'status') {
                 continue;
             }
 

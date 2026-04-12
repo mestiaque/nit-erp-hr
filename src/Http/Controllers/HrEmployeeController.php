@@ -11,6 +11,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use ME\Hr\Models\Designation;
 use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\Leave;
 use ME\Hr\Models\LeaveInfo;
@@ -1100,7 +1101,9 @@ class HrEmployeeController extends Controller
             'sections' => Attribute::where('type', 29)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'subSections' => SubSection::orderBy('name')->get(['id', 'name']),
             'lines' => Attribute::where('type', 4)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name', 'slug']),
-            'designations' => Attribute::where('type', 2)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
+            'designations' => Schema::hasTable((new Designation())->getTable())
+                ? Designation::query()->orderBy('name')->get(['id', 'name'])
+                : Attribute::where('type', 2)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'workingPlaces' => WorkingPlace::orderBy('name')->get(['id', 'name']),
             'weeks' => Schema::hasTable((new Weekday())->getTable())
                 ? Weekday::orderBy('id')->get(['id', 'name'])

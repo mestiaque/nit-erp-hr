@@ -26,7 +26,7 @@
 	margin-bottom: 2px;
 }
 .appraisal-table, .appraisal-table th, .appraisal-table td {
-	border: 1px solid #888;
+	border: 1px solid #888 !important;
 	border-collapse: collapse;
 }
 .appraisal-table {
@@ -50,7 +50,7 @@
 	margin-top: 18px;
 }
 .appraisal-footer-table th, .appraisal-footer-table td {
-	border: 1px solid #888;
+	border: 1px solid #888 !important;
 	padding: 6px 8px;
 	text-align: left;
 }
@@ -102,11 +102,11 @@
 	<tr><td>নির্ভরযোগ্যতা</td><td></td><td></td><td></td><td></td><td></td></tr>
 	<tr><td>সততা</td><td></td><td></td><td></td><td></td><td></td></tr>
 	<tr>
-		<th colspan="4" style="text-align:right;">মোট নম্বর:</th>
+		<td colspan="4" style="text-align:right;"><b>মোট নম্বর:</b></td>
 		<td colspan="2"></td>
 	</tr>
 	<tr>
-		<th colspan="4" style="text-align:right;">সর্বমোট নম্বর:</th>
+		<td colspan="4" style="text-align:right;"><b>সর্বমোট নম্বর:</b></td>
 		<td colspan="2"></td>
 	</tr>
 </table>

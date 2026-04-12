@@ -1,71 +1,128 @@
 @php
-    $companyName = general()->title ?? 'Company Name';
-    $companyAddress = general()->address_one ?? data_get(general(), 'address');
+    $language = $language ?? data_get($request ?? null, 'language', 'en');
+    $isBangla = $language === 'bn';
+    $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
+    $na = $t('প্রযোজ্য নয়', 'N/A');
+
+    $companyName = $isBangla
+        ? (hr_factory('bn_name') ?? hr_factory('name') ?? general()->name ?? $na)
+        : (hr_factory('name') ?? general()->name ?? hr_factory('bn_name') ?? $na);
+    $companyAddress = $isBangla
+        ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
+        : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
     $issueDate = now()->format('d/m/Y');
     $joinDate = $fmtDate($employee->joining_date);
 
-    $designation = optional($employee->designation)->name
-        ?? data_get($employee, 'designation_name')
-        ?? data_get(optional(\App\Models\Attribute::where('type', 2)->find($employee->designation_id)), 'name')
-        ?? 'N/A';
+    $designationAttr = optional(\App\Models\Attribute::where('type', 2)->find($employee->designation_id));
+    $departmentAttr = optional(\App\Models\Attribute::where('type', 3)->find($employee->department_id));
+    $sectionAttr = optional(\App\Models\Attribute::where('type', 29)->find($employee->section_id));
+    $designationModel = optional($employee->designation);
+    $departmentModel = optional($employee->department);
 
-    $department = optional($employee->department)->name
-        ?? data_get($employee, 'department_name')
-        ?? data_get(optional(\App\Models\Attribute::where('type', 3)->find($employee->department_id)), 'name')
-        ?? 'N/A';
+    $designation = $isBangla
+        ? ($designationModel->bn_name
+            ?? data_get($employee, 'designation_bn_name')
+            ?? data_get($designationAttr, 'bn_name')
+            ?? $designationModel->name
+            ?? data_get($employee, 'designation_name')
+            ?? data_get($designationAttr, 'name')
+            ?? $na)
+        : ($designationModel->name
+            ?? data_get($employee, 'designation_name')
+            ?? data_get($designationAttr, 'name')
+            ?? $designationModel->bn_name
+            ?? data_get($employee, 'designation_bn_name')
+            ?? data_get($designationAttr, 'bn_name')
+            ?? $na);
 
-    $section = data_get(optional(\App\Models\Attribute::where('type', 29)->find($employee->section_id)), 'name')
-        ?? data_get($employee, 'section')
-        ?? 'N/A';
+    $department = $isBangla
+        ? ($departmentModel->bn_name
+            ?? data_get($employee, 'department_bn_name')
+            ?? data_get($departmentAttr, 'bn_name')
+            ?? $departmentModel->name
+            ?? data_get($employee, 'department_name')
+            ?? data_get($departmentAttr, 'name')
+            ?? $na)
+        : ($departmentModel->name
+            ?? data_get($employee, 'department_name')
+            ?? data_get($departmentAttr, 'name')
+            ?? $departmentModel->bn_name
+            ?? data_get($employee, 'department_bn_name')
+            ?? data_get($departmentAttr, 'bn_name')
+            ?? $na);
+
+    $section = $isBangla
+        ? (data_get($sectionAttr, 'bn_name')
+            ?? data_get($employee, 'section_bn_name')
+            ?? data_get($sectionAttr, 'name')
+            ?? data_get($employee, 'section')
+            ?? $na)
+        : (data_get($sectionAttr, 'name')
+            ?? data_get($employee, 'section')
+            ?? data_get($sectionAttr, 'bn_name')
+            ?? data_get($employee, 'section_bn_name')
+            ?? $na);
 
     $employeeTypeValue = data_get($employee, 'employee_type');
     if (is_numeric($employeeTypeValue)) {
-        $classification = data_get(optional(\App\Models\Attribute::where('type', 16)->find((int) $employeeTypeValue)), 'name', 'N/A');
+        $classificationAttr = optional(\App\Models\Attribute::where('type', 16)->find((int) $employeeTypeValue));
+        $classification = $isBangla
+            ? (data_get($classificationAttr, 'bn_name') ?? data_get($classificationAttr, 'name') ?? $na)
+            : (data_get($classificationAttr, 'name') ?? data_get($classificationAttr, 'bn_name') ?? $na);
     } else {
-        $classification = !blank($employeeTypeValue) ? (string) $employeeTypeValue : 'N/A';
+        $classification = !blank($employeeTypeValue) ? (string) $employeeTypeValue : $na;
     }
 
-    $bloodGroup = data_get($employee, 'blood_group', 'N/A');
-    $emergency = data_get($employee, 'emergency_mobile', data_get($employee, 'emergency_contact_no', data_get($employee, 'mobile', 'N/A')));
-    $idNumber = data_get($employee, 'employee_id', data_get($employee, 'id', 'N/A'));
-    $permanentAddress = data_get($employee, 'permanent_address', data_get($employee, 'address', 'N/A'));
+    $employeeName = $isBangla
+        ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
+        : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
+    $bloodGroup = data_get($employee, 'blood_group', $na);
+    $emergency = data_get($employee, 'emergency_mobile', data_get($employee, 'emergency_contact_no', data_get($employee, 'mobile', $na)));
+    $idNumber = data_get($employee, 'employee_id', data_get($employee, 'id', $na));
+    $permanentAddress = $isBangla
+        ? (data_get($employee, 'permanent_address_bn') ?? data_get($employee, 'permanent_address') ?? data_get($employee, 'address', $na))
+        : (data_get($employee, 'permanent_address') ?? data_get($employee, 'address') ?? data_get($employee, 'permanent_address_bn', $na));
+
+    if ($joinDate === 'N/A') {
+        $joinDate = $na;
+    }
 @endphp
 
 <div class="id-card-sheet">
     <div class="id-card-side id-card-front">
         <div class="id-card-logo-wrap">
             @if(!blank(general()->logo()))
-                <img src="{{ asset(general()->logo()) }}" alt="Company Logo" class="id-card-logo">
+                <img src="{{ asset(general()->logo()) }}" alt="{{ $t('কোম্পানির লোগো', 'Company Logo') }}" class="id-card-logo">
             @endif
         </div>
         <h4 class="id-card-company">{{ $companyName }}</h4>
         <p class="id-card-address">{{ $companyAddress }}</p>
 
-        <div class="id-card-strip">ID CARD</div>
+        <div class="id-card-strip">{{ $t('পরিচয়পত্র', 'ID CARD') }}</div>
 
         <div class="id-card-photo-wrap">
-            <img src="{{ asset($employee->image()) }}" alt="Employee Photo" class="id-card-photo">
+            <img src="{{ asset($employee->image()) }}" alt="{{ $t('কর্মচারীর ছবি', 'Employee Photo') }}" class="id-card-photo">
         </div>
 
         <table class="id-card-info">
-            <tr><td>Name</td><td>: {{ $employee->name ?? 'N/A' }}</td></tr>
-            <tr><td>Designation</td><td>: {{ $designation }}</td></tr>
-            <tr><td>ID No.</td><td>: {{ $idNumber }}</td></tr>
-            <tr><td>Dept.</td><td>: {{ $department }}</td></tr>
-            <tr><td>Section</td><td>: {{ $section }}</td></tr>
-            <tr><td>Join Date</td><td>: {{ $joinDate }}</td></tr>
-            <tr><td>Classification</td><td>: {{ $classification }}</td></tr>
-            <tr><td>Issue Date</td><td>: {{ $issueDate }}</td></tr>
+            <tr><td>{{ $t('নাম', 'Name') }}</td><td>: {{ $employeeName }}</td></tr>
+            <tr><td>{{ $t('পদবি', 'Designation') }}</td><td>: {{ $designation }}</td></tr>
+            <tr><td>{{ $t('আইডি নং', 'ID No.') }}</td><td>: {{ $idNumber }}</td></tr>
+            <tr><td>{{ $t('বিভাগ', 'Dept.') }}</td><td>: {{ $department }}</td></tr>
+            <tr><td>{{ $t('সেকশন', 'Section') }}</td><td>: {{ $section }}</td></tr>
+            <tr><td>{{ $t('যোগদানের তারিখ', 'Join Date') }}</td><td>: {{ $joinDate }}</td></tr>
+            <tr><td>{{ $t('শ্রেণি', 'Classification') }}</td><td>: {{ $classification }}</td></tr>
+            <tr><td>{{ $t('ইস্যু তারিখ', 'Issue Date') }}</td><td>: {{ $issueDate }}</td></tr>
         </table>
 
         <div class="id-sign-row">
             <div>
                 <div class="id-sign-line"></div>
-                <div class="id-sign-label">Staff Signature</div>
+                <div class="id-sign-label">{{ $t('কর্মচারীর স্বাক্ষর', 'Staff Signature') }}</div>
             </div>
             <div>
                 <div class="id-sign-line"></div>
-                <div class="id-sign-label">Authority Signature</div>
+                <div class="id-sign-label">{{ $t('কর্তৃপক্ষের স্বাক্ষর', 'Authority Signature') }}</div>
             </div>
         </div>
     </div>
@@ -73,24 +130,24 @@
     <div class="id-card-side id-card-back">
         <div class="id-card-logo-wrap">
             @if(!blank(general()->logo()))
-                <img src="{{ asset(general()->logo()) }}" alt="Company Logo" class="id-card-logo">
+                <img src="{{ asset(general()->logo()) }}" alt="{{ $t('কোম্পানির লোগো', 'Company Logo') }}" class="id-card-logo">
             @endif
         </div>
 
-        <p class="id-back-head">Blood Group : <strong>{{ $bloodGroup }}</strong></p>
-        <p class="id-back-head">Permanent Address</p>
+        <p class="id-back-head">{{ $t('রক্তের গ্রুপ', 'Blood Group') }} : <strong>{{ $bloodGroup }}</strong></p>
+        <p class="id-back-head">{{ $t('স্থায়ী ঠিকানা', 'Permanent Address') }}</p>
         <p class="id-back-text">{{ $permanentAddress }}</p>
 
-        <p class="id-back-head" style="margin-top: 10px;">Emergency Contact No.:</p>
+        <p class="id-back-head" style="margin-top: 10px;">{{ $t('জরুরি যোগাযোগ নম্বর', 'Emergency Contact No.') }}:</p>
         <p class="id-back-text"><strong>{{ $emergency }}</strong></p>
 
         <p class="id-back-text" style="margin-top: 8px;">
-            Please return to the following address or nearest office station.
+            {{ $t('কার্ডটি পেলে নিচের ঠিকানায় বা নিকটস্থ অফিসে ফেরত দিন।', 'Please return to the following address or nearest office station.') }}
         </p>
         <p class="id-back-company"><strong>{{ $companyName }}</strong></p>
         <p class="id-back-text">{{ $companyAddress }}</p>
-        <p class="id-back-text">Contact No.: 0</p>
+        <p class="id-back-text">{{ $t('যোগাযোগ নম্বর', 'Contact No.') }}: 0</p>
 
-        <div class="id-card-strip id-card-strip-bottom">Exp. Date: Up to the last date of job.</div>
+        <div class="id-card-strip id-card-strip-bottom">{{ $t('মেয়াদ: চাকরির শেষ তারিখ পর্যন্ত।', 'Exp. Date: Up to the last date of job.') }}</div>
     </div>
 </div>
