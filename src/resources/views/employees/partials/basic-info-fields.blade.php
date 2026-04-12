@@ -1,37 +1,50 @@
 @php
     $normalize = static fn ($value) => strtolower(trim((string) $value));
-    $buildOptions = static function (array $defaults, $current) use ($normalize): array {
-        $seen = [];
-        $options = [];
+    $selectedMaritalStatus = $normalize(old('marital_status', $employee->marital_status));
+    $selectedGender = $normalize(old('gender', $employee->gender));
+    $selectedReligion = $normalize(old('religion', $employee->religion));
+    $selectedNationality = strtolower(trim((string) old('nationality', $employee->nationality)));
 
-        foreach (array_merge([(string) $current], $defaults) as $value) {
-            $value = trim((string) $value);
-            if ($value === '') {
-                continue;
-            }
+    $maritalStatusMasterOptions = collect(data_get($options ?? [], 'maritalStatuses', []))
+        ->pluck('name')
+        ->map(static fn ($value) => trim((string) $value))
+        ->filter(static fn ($value) => $value !== '')
+        ->values()
+        ->all();
+    $genderMasterOptions = collect(data_get($options ?? [], 'sexes', []))
+        ->pluck('name')
+        ->map(static fn ($value) => trim((string) $value))
+        ->filter(static fn ($value) => $value !== '')
+        ->values()
+        ->all();
+    $religionMasterOptions = collect(data_get($options ?? [], 'religions', []))
+        ->pluck('name')
+        ->map(static fn ($value) => trim((string) $value))
+        ->filter(static fn ($value) => $value !== '')
+        ->values()
+        ->all();
+    $paymentModeMasterOptions = collect(data_get($options ?? [], 'paymentMethods', []))
+        ->pluck('name')
+        ->map(static fn ($value) => trim((string) $value))
+        ->filter(static fn ($value) => $value !== '')
+        ->values()
+        ->all();
 
-            $key = $normalize($value);
-            if (isset($seen[$key])) {
-                continue;
-            }
-
-            $seen[$key] = true;
-            $options[] = $value;
-        }
-
-        return $options;
-    };
-
-    $selectedMaritalStatus = $normalize($employee->marital_status);
-    $selectedGender = $normalize($employee->gender);
-    $selectedReligion = $normalize($employee->religion);
-
-    $maritalStatusOptions = $buildOptions((array) data_get($basicInfoOptions ?? [], 'marital_status', []), $employee->marital_status);
-    $genderOptions = $buildOptions((array) data_get($basicInfoOptions ?? [], 'gender', []), $employee->gender);
-    $religionOptions = $buildOptions((array) data_get($basicInfoOptions ?? [], 'religion', []), $employee->religion);
+    $maritalStatusOptions = $maritalStatusMasterOptions;
+    $genderOptions = $genderMasterOptions;
+    $religionOptions = $religionMasterOptions;
+    $countryOptions = collect(data_get($options ?? [], 'countries', []))
+        ->pluck('name')
+        ->map(static fn ($value) => trim((string) $value))
+        ->filter(static fn ($value) => $value !== '')
+        ->unique(static fn ($value) => strtolower($value))
+        ->values()
+        ->all();
+    $nationalityOptions = $countryOptions;
 
     $selectedBloodGroup = strtoupper(trim((string) old('blood_group', $employee->blood_group)));
     $selectedPaymentMode = strtolower(trim((string) old('salary_type', $employee->salary_type)));
+    $paymentModeOptions = $paymentModeMasterOptions;
     $profileInfo = json_decode($employee->other_information ?? '{}', true);
     $profileInfo = is_array($profileInfo) ? data_get($profileInfo, 'profile', []) : [];
 @endphp
@@ -50,7 +63,6 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Marital Status (Bangla)</label><input type="text" name="marital_status_bn" value="{{ old('marital_status_bn', data_get($profileInfo, 'marital_status_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Spouse Name</label><input type="text" name="spouse_name" value="{{ old('spouse_name', $employee->spouse_name) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Spouse Name (Bangla)</label><input type="text" name="spouse_name_bn" value="{{ old('spouse_name_bn', $employee->spouse_name_bn) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2">
@@ -62,16 +74,14 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Sex (Bangla)</label><input type="text" name="gender_bn" value="{{ old('gender_bn', data_get($profileInfo, 'gender_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Child</label><input type="number" name="boys" value="{{ old('boys', $employee->boys) }}" class="form-control form-control-sm" min="0"></div>
     <div class="col-md-4 mb-2">
         <label class="mb-1">Payment Mode</label>
         <select name="salary_type" class="form-control form-control-sm">
             <option value="">Select</option>
-            <option value="Cash" @selected($selectedPaymentMode === 'cash')>Cash</option>
-            <option value="Bank" @selected($selectedPaymentMode === 'bank')>Bank</option>
-            <option value="Mobile Banking" @selected($selectedPaymentMode === 'mobile banking')>Mobile Banking</option>
-            <option value="Cheque" @selected($selectedPaymentMode === 'cheque')>Cheque</option>
+            @foreach($paymentModeOptions as $option)
+                <option value="{{ $option }}" @selected($selectedPaymentMode === $normalize($option))>{{ $option }}</option>
+            @endforeach
         </select>
     </div>
     <div class="col-md-4 mb-2">
@@ -83,7 +93,6 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Religion (Bangla)</label><input type="text" name="religion_bn" value="{{ old('religion_bn', data_get($profileInfo, 'religion_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Birth Date</label><input type="date" name="dob" value="{{ old('dob', optional($employee->dob)->format('Y-m-d') ?? (is_string($employee->dob) ? $employee->dob : '')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2">
         <label class="mb-1">Blood Group</label>
@@ -94,16 +103,19 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Nationality</label><input type="text" name="nationality" value="{{ old('nationality', $employee->nationality) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Nationality (Bangla)</label><input type="text" name="nationality_bn" value="{{ old('nationality_bn', data_get($profileInfo, 'nationality_bn')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-4 mb-2">
+        <label class="mb-1">Nationality</label>
+        <select name="nationality" class="form-control form-control-sm">
+            <option value="">Select</option>
+            @foreach($nationalityOptions as $option)
+                <option value="{{ $option }}" @selected($selectedNationality === strtolower(trim((string) $option)))>{{ $option }}</option>
+            @endforeach
+        </select>
+    </div>
     <div class="col-md-4 mb-2"><label class="mb-1">National ID No.</label><input type="text" name="nid_number" value="{{ old('nid_number', $employee->nid_number) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">National ID No. (Bangla)</label><input type="text" name="nid_number_bn" value="{{ old('nid_number_bn', data_get($profileInfo, 'nid_number_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Birth Registration No.</label><input type="text" name="birth_registration" value="{{ old('birth_registration', $employee->birth_registration) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Birth Registration No. (Bangla)</label><input type="text" name="birth_registration_bn" value="{{ old('birth_registration_bn', data_get($profileInfo, 'birth_registration_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Passport No.</label><input type="text" name="passport_no" value="{{ old('passport_no', $employee->passport_no) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Passport No. (Bangla)</label><input type="text" name="passport_no_bn" value="{{ old('passport_no_bn', data_get($profileInfo, 'passport_no_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Driving License No.</label><input type="text" name="driving_license" value="{{ old('driving_license', $employee->driving_license) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Driving License No. (Bangla)</label><input type="text" name="driving_license_bn" value="{{ old('driving_license_bn', data_get($profileInfo, 'driving_license_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Special Identification Sign</label><input type="text" name="distinguished_mark" value="{{ old('distinguished_mark', $employee->distinguished_mark) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Special Identification Sign (Bangla)</label><input type="text" name="distinguished_mark_bn" value="{{ old('distinguished_mark_bn', data_get($profileInfo, 'distinguished_mark_bn')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Educational Experience</label><input type="text" name="education" value="{{ old('education', $employee->education) }}" class="form-control form-control-sm"></div>
@@ -121,3 +133,14 @@
     <div class="col-md-4 mb-2"><label class="mb-1">Reference Mobile No.</label><input type="text" name="reference_mobile" value="{{ old('reference_mobile', data_get($profileInfo, 'reference_mobile')) }}" class="form-control form-control-sm"></div>
     <div class="col-md-4 mb-2"><label class="mb-1">Reference Mobile No. (Bangla)</label><input type="text" name="reference_mobile_bn" value="{{ old('reference_mobile_bn', data_get($profileInfo, 'reference_mobile_bn')) }}" class="form-control form-control-sm"></div>
 </div>
+
+
+
+
+
+
+
+
+
+
+

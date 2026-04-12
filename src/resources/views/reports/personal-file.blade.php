@@ -127,7 +127,7 @@
                                 <div class="d-flex align-items-center mb-2 col-md-3 float-right">
                                     <button type="submit" class="btn btn-secondary btn-sm w-100 mr-1">Filter</button>
                                     <a href="{{ route('hr-center.reports.show', $reportKey) }}" class="btn btn-light btn-sm w-100">Reset</a>
-                                    <button type="submit" name="print" value="1" class="btn btn-primary btn-sm w-100 mr-1" formtarget="_blank">Print </button>
+                                    <button type="button" id="personalFilePrintBtn" class="btn btn-primary btn-sm w-100 mr-1 no-loader">Print </button>
                                 </div>
                             </div>
 
@@ -172,3 +172,67 @@
     </div>
 </div>
 @endsection
+
+@push('js')
+<script>
+    (function() {
+        const printButton = document.getElementById('personalFilePrintBtn');
+        const reportForm = printButton ? printButton.closest('form') : null;
+
+        if (!printButton || !reportForm) {
+            return;
+        }
+
+        function hideLoaderIfVisible() {
+            if (typeof XLoader !== 'undefined' && typeof XLoader.hide === 'function') {
+                XLoader.hide();
+            }
+        }
+
+        function openPrintTab() {
+            if (typeof reportForm.reportValidity === 'function' && !reportForm.reportValidity()) {
+                return;
+            }
+
+            const formData = new FormData(reportForm);
+            formData.set('print', '1');
+
+            const params = new URLSearchParams();
+            for (const [key, value] of formData.entries()) {
+                params.append(key, String(value));
+            }
+
+            const url = reportForm.action + (reportForm.action.includes('?') ? '&' : '?') + params.toString();
+            window.open(url, '_blank');
+            hideLoaderIfVisible();
+        }
+
+        // Right/middle/modified clicks can trigger global loader logic without unloading this page.
+        printButton.addEventListener('mousedown', function(event) {
+            if (event.button === 2 || event.ctrlKey || event.metaKey) {
+                event.stopPropagation();
+                hideLoaderIfVisible();
+            }
+        }, true);
+
+        printButton.addEventListener('contextmenu', hideLoaderIfVisible);
+        printButton.addEventListener('auxclick', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            openPrintTab();
+        });
+
+        printButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            openPrintTab();
+        });
+
+        printButton.addEventListener('mouseup', function(event) {
+            if (event.button === 2 || event.ctrlKey || event.metaKey) {
+                hideLoaderIfVisible();
+            }
+        });
+    })();
+</script>
+@endpush

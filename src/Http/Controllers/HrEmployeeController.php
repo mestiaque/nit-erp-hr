@@ -15,6 +15,8 @@ use ME\Hr\Models\Designation;
 use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\Leave;
 use ME\Hr\Models\LeaveInfo;
+use ME\Hr\Models\Location;
+use ME\Hr\Models\PaymentMethod;
 use ME\Hr\Models\Shift;
 use ME\Hr\Models\SubSection;
 use ME\Hr\Models\Weekday;
@@ -270,26 +272,18 @@ class HrEmployeeController extends Controller
             'mother_name'         => 'nullable|string|max:191',
             'mother_name_bn'      => 'nullable|string|max:191',
             'marital_status'      => 'nullable|string|max:50',
-            'marital_status_bn'   => 'nullable|string|max:100',
             'spouse_name'         => 'nullable|string|max:191',
             'spouse_name_bn'      => 'nullable|string|max:191',
             'gender'              => 'nullable|string|max:20',
-            'gender_bn'           => 'nullable|string|max:50',
             'boys'                => 'nullable|integer|min:0',
             'religion'            => 'nullable|string|max:100',
-            'religion_bn'         => 'nullable|string|max:100',
             'dob'                 => 'nullable|date',
             'blood_group'         => 'nullable|string|max:10',
             'nationality'         => 'nullable|string|max:100',
-            'nationality_bn'      => 'nullable|string|max:100',
             'nid_number'          => 'nullable|string|max:100',
-            'nid_number_bn'       => 'nullable|string|max:100',
             'birth_registration'  => 'nullable|string|max:100',
-            'birth_registration_bn' => 'nullable|string|max:100',
             'passport_no'         => 'nullable|string|max:100',
-            'passport_no_bn'      => 'nullable|string|max:100',
             'driving_license'     => 'nullable|string|max:100',
-            'driving_license_bn'  => 'nullable|string|max:100',
             'distinguished_mark'  => 'nullable|string|max:191',
             'distinguished_mark_bn' => 'nullable|string|max:191',
             'education'           => 'nullable|string|max:191',
@@ -309,6 +303,83 @@ class HrEmployeeController extends Controller
             'reference_mobile_bn' => 'nullable|string|max:30',
         ]);
 
+        $other = $this->otherInfo($employee);
+        $currentProfile = data_get($other, 'profile', []);
+
+        $options = $this->options();
+        $maritalStatusMap = array_replace([
+            'single' => 'অবিবাহিত',
+            'unmarried' => 'অবিবাহিত',
+            'married' => 'বিবাহিত',
+            'divorced' => 'তালাকপ্রাপ্ত',
+            'widowed' => 'বিধবা/বিপত্নীক',
+            'widow' => 'বিধবা/বিপত্নীক',
+            'widower' => 'বিধবা/বিপত্নীক',
+        ], $this->banglaMapFromOptions(data_get($options, 'maritalStatuses', []), ['name', 'code']));
+        $genderMap = array_replace([
+            'male' => 'পুরুষ',
+            'female' => 'মহিলা',
+            'other' => 'অন্যান্য',
+        ], $this->banglaMapFromOptions(data_get($options, 'sexes', []), ['name', 'code']));
+        $religionMap = array_replace([
+            'islam' => 'ইসলাম',
+            'hindu' => 'হিন্দু',
+            'buddhist' => 'বৌদ্ধ',
+            'christian' => 'খ্রিস্টান',
+            'others' => 'অন্যান্য',
+            'other' => 'অন্যান্য',
+        ], $this->banglaMapFromOptions(data_get($options, 'religions', []), ['name', 'code']));
+        $paymentModeMap = array_replace([
+            'cash' => 'নগদ',
+            'bank' => 'ব্যাংক',
+            'mobile banking' => 'মোবাইল ব্যাংকিং',
+            'cheque' => 'চেক',
+        ], $this->banglaMapFromOptions(data_get($options, 'paymentMethods', []), ['name', 'code']));
+        $nationalityMap = array_replace([
+            'bangladeshi' => 'বাংলাদেশি',
+            'bangladesh' => 'বাংলাদেশ',
+            'indian' => 'ভারতীয়',
+            'india' => 'ভারত',
+            'pakistani' => 'পাকিস্তানি',
+            'pakistan' => 'পাকিস্তান',
+            'nepali' => 'নেপালি',
+            'nepal' => 'নেপাল',
+            'bhutanese' => 'ভুটানি',
+            'bhutan' => 'ভুটান',
+            'sri lankan' => 'শ্রীলঙ্কান',
+            'sri lanka' => 'শ্রীলঙ্কা',
+        ], $this->banglaMapFromOptions(data_get($options, 'countries', []), ['name', 'code']));
+
+        $payload['marital_status_bn'] = $this->toBanglaLabel(
+            $payload['marital_status'] ?? null,
+            $maritalStatusMap,
+            data_get($currentProfile, 'marital_status_bn')
+        );
+
+        $payload['gender_bn'] = $this->toBanglaLabel(
+            $payload['gender'] ?? null,
+            $genderMap,
+            data_get($currentProfile, 'gender_bn')
+        );
+
+        $payload['religion_bn'] = $this->toBanglaLabel(
+            $payload['religion'] ?? null,
+            $religionMap,
+            data_get($currentProfile, 'religion_bn')
+        );
+
+        $payload['nationality_bn'] = $this->toBanglaLabel(
+            $payload['nationality'] ?? null,
+            $nationalityMap,
+            data_get($currentProfile, 'nationality_bn')
+        );
+
+        $payload['salary_type_bn'] = $this->toBanglaLabel(
+            $payload['salary_type'] ?? null,
+            $paymentModeMap,
+            data_get($currentProfile, 'salary_type_bn')
+        );
+
         $profileFields = [
             'job_experience',
             'job_experience_bn',
@@ -322,10 +393,7 @@ class HrEmployeeController extends Controller
             'gender_bn',
             'religion_bn',
             'nationality_bn',
-            'nid_number_bn',
-            'birth_registration_bn',
-            'passport_no_bn',
-            'driving_license_bn',
+            'salary_type_bn',
             'distinguished_mark_bn',
             'education_bn',
             'reference_1_bn',
@@ -349,10 +417,11 @@ class HrEmployeeController extends Controller
             'gender_bn' => $payload['gender_bn'] ?? null,
             'religion_bn' => $payload['religion_bn'] ?? null,
             'nationality_bn' => $payload['nationality_bn'] ?? null,
-            'nid_number_bn' => $payload['nid_number_bn'] ?? null,
-            'birth_registration_bn' => $payload['birth_registration_bn'] ?? null,
-            'passport_no_bn' => $payload['passport_no_bn'] ?? null,
-            'driving_license_bn' => $payload['driving_license_bn'] ?? null,
+            'salary_type_bn' => $payload['salary_type_bn'] ?? null,
+            'nid_number_bn' => null,
+            'birth_registration_bn' => null,
+            'passport_no_bn' => null,
+            'driving_license_bn' => null,
             'distinguished_mark_bn' => $payload['distinguished_mark_bn'] ?? null,
             'education_bn' => $payload['education_bn'] ?? null,
             'reference_1_bn' => $payload['reference_1_bn'] ?? null,
@@ -1095,6 +1164,37 @@ class HrEmployeeController extends Controller
 
     private function options(): array
     {
+        $maritalStatuses = Location::query()
+            ->whereIn('type', ['marital_status', 'marital-status'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'bn_name', 'code']);
+
+        $religions = Location::query()
+            ->whereIn('type', ['religion', 'religions'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'bn_name', 'code']);
+
+        $sexes = Location::query()
+            ->whereIn('type', ['sex', 'gender'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'bn_name', 'code']);
+
+        $paymentMethodColumns = ['id', 'name', 'code'];
+        if (Schema::hasColumn((new PaymentMethod())->getTable(), 'bn_name')) {
+            $paymentMethodColumns[] = 'bn_name';
+        }
+
+        $paymentMethods = PaymentMethod::query()
+            ->orderBy('name')
+            ->get($paymentMethodColumns);
+
+        $countryColumns = ['id', 'name'];
+        if (Schema::hasColumn((new Country())->getTable(), 'bn_name')) {
+            $countryColumns[] = 'bn_name';
+        }
+
+        $countries = Country::query()->orderBy('name')->get($countryColumns);
+
         return [
             'classifications' => Attribute::where('type', 16)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'departments' => Attribute::where('type', 3)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
@@ -1117,7 +1217,11 @@ class HrEmployeeController extends Controller
                     (object) ['id' => 7, 'name' => 'Saturday'],
                 ]),
             'shifts' => Shift::orderBy('name_of_shift')->get(['id', 'name_of_shift']),
-            'countries' => Country::where('type', 1)->orderBy('name')->get(['id', 'name']),
+            'maritalStatuses' => $maritalStatuses,
+            'religions' => $religions,
+            'sexes' => $sexes,
+            'paymentMethods' => $paymentMethods,
+            'countries' => $countries,
             'districts' => Country::where('type', 3)->orderBy('name')->get(['id', 'name']),
             'thanas' => Country::where('type', 4)->orderBy('name')->get(['id', 'parent_id', 'name']),
         ];
@@ -1196,6 +1300,49 @@ class HrEmployeeController extends Controller
         $columnType = strtolower((string) Schema::getColumnType('users', 'status'));
 
         return in_array($columnType, ['tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint', 'boolean'], true);
+    }
+
+    private function toBanglaLabel(?string $value, array $map, ?string $fallback = null): ?string
+    {
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+
+        $normalized = strtolower($text);
+        if (isset($map[$normalized])) {
+            return $map[$normalized];
+        }
+
+        $fallbackText = trim((string) $fallback);
+        if ($fallbackText !== '') {
+            return $fallbackText;
+        }
+
+        return $text;
+    }
+
+    private function banglaMapFromOptions(iterable $items, array $sourceFields = ['name', 'code']): array
+    {
+        $map = [];
+
+        foreach ($items as $item) {
+            $bangla = trim((string) data_get($item, 'bn_name', data_get($item, 'name_bn', '')));
+            if ($bangla === '') {
+                continue;
+            }
+
+            foreach ($sourceFields as $field) {
+                $source = trim((string) data_get($item, $field));
+                if ($source === '') {
+                    continue;
+                }
+
+                $map[strtolower($source)] = $bangla;
+            }
+        }
+
+        return $map;
     }
 
     private function applyExtendedProfileFields(User $employee, array $payload): void

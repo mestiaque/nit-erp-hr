@@ -11,6 +11,10 @@
         @include('hr::reports.partials.personal-file.appointment-letter')
         @break
 
+    @case('employment-letter')
+        @include('hr::reports.partials.personal-file.employment-letter')
+        @break
+
     @case('nominee')
         @include('hr::reports.partials.personal-file.nominee')
         @break

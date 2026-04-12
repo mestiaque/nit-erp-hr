@@ -985,6 +985,7 @@ class HrReportController extends Controller
             'id-card' => 'ID Card',
             'application' => 'Application',
             'appointment-letter' => 'Appoinment Letter',
+            'employment-letter' => 'Employment Letter',
             'nominee' => 'Nominee',
             'age-verification' => 'Age Verification',
             'job-responsibility' => 'Job Responsibility',

@@ -13,7 +13,7 @@
     $issueDate = now()->format('d/m/Y');
     $joinDate = $fmtDate($employee->joining_date);
 
-    $designationAttr = optional(\App\Models\Attribute::where('type', 2)->find($employee->designation_id));
+    $designationAttr = optional(\ME\Hr\Models\Designation::find($employee->designation_id));
     $departmentAttr = optional(\App\Models\Attribute::where('type', 3)->find($employee->department_id));
     $sectionAttr = optional(\App\Models\Attribute::where('type', 29)->find($employee->section_id));
     $designationModel = optional($employee->designation);
