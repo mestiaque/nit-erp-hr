@@ -47,12 +47,12 @@
     <div class="col-md-6 mb-2"><label class="mb-1">Age</label><input type="number" name="nominee_age" value="{{ old('nominee_age', $employee->nominee_age) }}" class="form-control form-control-sm"></div>
 
     <div class="col-12 mt-2"><h6 class="mb-2">Payment Distribution (%)</h6></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Net Payment</label><input type="number" step="0.01" name="distribution_net_payment" value="{{ old('distribution_net_payment', data_get($nomineeInfo, 'distribution_net_payment')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Provident Fund</label><input type="number" step="0.01" name="distribution_provident_fund" value="{{ old('distribution_provident_fund', data_get($nomineeInfo, 'distribution_provident_fund')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Insurance</label><input type="number" step="0.01" name="distribution_insurance" value="{{ old('distribution_insurance', data_get($nomineeInfo, 'distribution_insurance')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Accident Fine</label><input type="number" step="0.01" name="distribution_accident_fine" value="{{ old('distribution_accident_fine', data_get($nomineeInfo, 'distribution_accident_fine')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Profit</label><input type="number" step="0.01" name="distribution_profit" value="{{ old('distribution_profit', data_get($nomineeInfo, 'distribution_profit')) }}" class="form-control form-control-sm"></div>
-    <div class="col-md-4 mb-2"><label class="mb-1">Others</label><input type="number" step="0.01" name="distribution_others" value="{{ old('distribution_others', data_get($nomineeInfo, 'distribution_others')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Net Payment</label><input type="number" step="0.01" name="distribution_net_payment" value="{{ old('distribution_net_payment', data_get($nomineeInfo, 'distribution_net_payment')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Provident Fund</label><input type="number" step="0.01" name="distribution_provident_fund" value="{{ old('distribution_provident_fund', data_get($nomineeInfo, 'distribution_provident_fund')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Insurance</label><input type="number" step="0.01" name="distribution_insurance" value="{{ old('distribution_insurance', data_get($nomineeInfo, 'distribution_insurance')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Accident Fine</label><input type="number" step="0.01" name="distribution_accident_fine" value="{{ old('distribution_accident_fine', data_get($nomineeInfo, 'distribution_accident_fine')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Profit</label><input type="number" step="0.01" name="distribution_profit" value="{{ old('distribution_profit', data_get($nomineeInfo, 'distribution_profit')) }}" class="form-control form-control-sm"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Others</label><input type="number" step="0.01" name="distribution_others" value="{{ old('distribution_others', data_get($nomineeInfo, 'distribution_others')) }}" class="form-control form-control-sm"></div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

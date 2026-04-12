@@ -242,7 +242,7 @@
 </div>
 
 <div class="modal fade" id="CreateEmployeeModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-md" role="document">
         <div class="modal-content">
             <form method="post" action="{{ route('hr-center.employees.store') }}">
                 @csrf
@@ -264,7 +264,7 @@
 
 @foreach($employees as $employee)
 <div class="modal fade" id="EditEmployeeModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-md" role="document">
         <div class="modal-content">
             <form method="post" action="{{ route('hr-center.employees.profile.update', $employee->id) }}" enctype="multipart/form-data">
                 @csrf
@@ -281,7 +281,7 @@
 </div>
 
 <div class="modal fade" id="SalaryModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.salary.update', $employee->id) }}">@csrf @method('put')
+    <div class="modal-dialog modal-md" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.salary.update', $employee->id) }}">@csrf @method('put')
         <div class="modal-header"><h5 class="modal-title">Salary Info</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
         <div class="modal-body">@include('hr::employees.partials.salary-fields', ['employee' => $employee])</div>
         <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
@@ -289,7 +289,7 @@
 </div>
 
 <div class="modal fade" id="AddressModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.address.update', $employee->id) }}">@csrf @method('put')
+    <div class="modal-dialog modal-md" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.address.update', $employee->id) }}">@csrf @method('put')
         <div class="modal-header"><h5 class="modal-title">Address</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
         <div class="modal-body">@include('hr::employees.partials.address-fields', ['employee' => $employee, 'options' => $options])</div>
         <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
@@ -297,7 +297,7 @@
 </div>
 
 <div class="modal fade" id="NomineeModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.nominee.update', $employee->id) }}" enctype="multipart/form-data">@csrf @method('put')
+    <div class="modal-dialog modal-md" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.nominee.update', $employee->id) }}" enctype="multipart/form-data">@csrf @method('put')
         <div class="modal-header"><h5 class="modal-title">Nominee Information</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
         <div class="modal-body">@include('hr::employees.partials.nominee-fields', ['employee' => $employee, 'options' => $options])</div>
         <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
@@ -329,7 +329,7 @@
 </div>
 
 <div class="modal fade" id="BasicInfoModal_{{ $employee->id }}" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.basic-info.update', $employee->id) }}">@csrf @method('put')
+    <div class="modal-dialog modal-md" role="document"><div class="modal-content"><form method="post" action="{{ route('hr-center.employees.basic-info.update', $employee->id) }}">@csrf @method('put')
         <div class="modal-header"><h5 class="modal-title">Basic Info — {{ $employee->name }}</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
         <div class="modal-body">@include('hr::employees.partials.basic-info-fields', ['employee' => $employee, 'basicInfoOptions' => $basicInfoOptions ?? [], 'options' => $options ?? []])</div>
         <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
