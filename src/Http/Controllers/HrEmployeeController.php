@@ -45,39 +45,39 @@ class HrEmployeeController extends Controller
         }
 
         if ($request->filled('classification_id')) {
-            $query->where('employee_type', (int) $request->classification_id);
+            $this->applyIntegerFilter($query, 'employee_type', (int) $request->classification_id);
         }
 
         if ($request->filled('department_id')) {
-            $query->where('department_id', (int) $request->department_id);
+            $this->applyIntegerFilter($query, 'department_id', (int) $request->department_id);
         }
 
         if ($request->filled('section_id')) {
-            $query->where('section_id', (int) $request->section_id);
+            $this->applyIntegerFilter($query, 'section_id', (int) $request->section_id);
         }
 
         if ($request->filled('sub_section_id')) {
-            $query->where('sub_section_id', (int) $request->sub_section_id);
+            $this->applyIntegerFilter($query, 'sub_section_id', (int) $request->sub_section_id, 'sub_section_id');
         }
 
         if ($request->filled('designation_id')) {
-            $query->where('designation_id', (int) $request->designation_id);
+            $this->applyIntegerFilter($query, 'designation_id', (int) $request->designation_id);
         }
 
         if ($request->filled('shift_id')) {
-            $query->where('shift_id', (int) $request->shift_id);
+            $this->applyIntegerFilter($query, 'shift_id', (int) $request->shift_id);
         }
 
         if ($request->filled('working_place_id')) {
-            $query->where('working_place_id', (int) $request->working_place_id);
+            $this->applyIntegerFilter($query, 'working_place_id', (int) $request->working_place_id, 'working_place_id');
         }
 
         if ($request->filled('line_id')) {
-            $query->where('line_number', (int) $request->line_id);
+            $this->applyIntegerFilter($query, 'line_number', (int) $request->line_id);
         }
 
         if ($request->filled('weekend')) {
-            $query->where('weekend', (string) $request->weekend);
+            $this->applyStringFilter($query, 'weekend', (string) $request->weekend, 'weekend');
         }
 
         if ($request->filled('status')) {
@@ -1254,6 +1254,55 @@ class HrEmployeeController extends Controller
             User::query()->filterByType('employee')->whereKey($employee->id)->exists(),
             404
         );
+    }
+
+    private function applyIntegerFilter($query, string $column, int $value, ?string $profileKey = null): void
+    {
+        $query->where(function ($builder) use ($column, $value, $profileKey) {
+            $matched = false;
+
+            if (Schema::hasColumn('users', $column)) {
+                $builder->where($column, $value);
+                $matched = true;
+            }
+
+            if ($profileKey !== null) {
+                $jsonPath = 'other_information->profile->' . $profileKey;
+                if ($matched) {
+                    $builder->orWhereJsonContains($jsonPath, $value)
+                        ->orWhereJsonContains($jsonPath, (string) $value);
+                } else {
+                    $builder->whereJsonContains($jsonPath, $value)
+                        ->orWhereJsonContains($jsonPath, (string) $value);
+                }
+            }
+        });
+    }
+
+    private function applyStringFilter($query, string $column, string $value, ?string $profileKey = null): void
+    {
+        $text = trim($value);
+        if ($text === '') {
+            return;
+        }
+
+        $query->where(function ($builder) use ($column, $text, $profileKey) {
+            $matched = false;
+
+            if (Schema::hasColumn('users', $column)) {
+                $builder->where($column, $text);
+                $matched = true;
+            }
+
+            if ($profileKey !== null) {
+                $jsonPath = 'other_information->profile->' . $profileKey;
+                if ($matched) {
+                    $builder->orWhereJsonContains($jsonPath, $text);
+                } else {
+                    $builder->whereJsonContains($jsonPath, $text);
+                }
+            }
+        });
     }
 
     private function calculateTotalDays(?string $leaveFrom, ?string $leaveTo): int
