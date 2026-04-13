@@ -533,7 +533,7 @@ class HrEmployeeController extends Controller
         return redirect()->route('hr-center.employees.index')->with('success', 'Lefty/Resign info updated.');
     }
 
-    public function updateFinalSettlement(Request $request, User $employee): RedirectResponse
+    public function updateFinalSettlement(Request $request, User $employee)
     {
         $this->ensureEmployee($employee);
 
@@ -542,6 +542,7 @@ class HrEmployeeController extends Controller
             'letter_1_date' => 'nullable|date',
             'letter_2_date' => 'nullable|date',
             'letter_3_date' => 'nullable|date',
+            'final_settlement_option' => 'nullable|in:1st Letter,2nd Letter,3rd Letter',
         ]);
 
         $other = $this->otherInfo($employee);
@@ -549,6 +550,34 @@ class HrEmployeeController extends Controller
         $employee->other_information = json_encode($other);
         $employee->setTypes('employee');
         $employee->save();
+
+        if ($request->routeIs('hr-center.employees.final-settlement.print')) {
+            $designationBn = null;
+            $designationEn = null;
+
+            if (!empty($employee->designation_id)) {
+                if (Schema::hasTable((new Designation())->getTable())) {
+                    $designationRow = Designation::query()->find($employee->designation_id);
+                    $designationBn = data_get($designationRow, 'bn_name');
+                    $designationEn = data_get($designationRow, 'name');
+                }
+
+                if (!$designationBn && !$designationEn) {
+                    $designationAttr = Attribute::query()
+                        ->where('id', $employee->designation_id)
+                        ->first(['id', 'name', 'bn_name']);
+                    $designationBn = data_get($designationAttr, 'bn_name');
+                    $designationEn = data_get($designationAttr, 'name');
+                }
+            }
+
+            return view('hr::employees.print.final-settlement', [
+                'employee' => $employee,
+                'settlement' => $payload,
+                'designation_bn' => $designationBn,
+                'designation_en' => $designationEn,
+            ]);
+        }
 
         return redirect()->route('hr-center.employees.index')->with('success', 'Final settlement info updated.');
     }
@@ -570,7 +599,7 @@ class HrEmployeeController extends Controller
                 return [
                     'source' => 'db',
                     'identifier' => (string) ($row->id ?? ''),
-                    'amount' => (float) (data_get($row, 'gross_increment_amount') ?? data_get($row, 'amount') ?? 0),
+                    'amount' => (float) (data_get($row, 'gross_increment_amount') ?? data_get($row, 'new_salary') ?? data_get($row, 'amount') ?? 0),
                     'increment_date' => data_get($row, 'increment_date') ?? data_get($row, 'date'),
                 ];
             })->values();
@@ -637,6 +666,8 @@ class HrEmployeeController extends Controller
         }
         if (Schema::hasColumn($table, 'gross_increment_amount')) {
             $row->gross_increment_amount = $payload['amount'];
+        } elseif (Schema::hasColumn($table, 'new_salary')) {
+            $row->new_salary = $payload['amount'];
         } elseif (Schema::hasColumn($table, 'amount')) {
             $row->amount = $payload['amount'];
         }
@@ -677,6 +708,8 @@ class HrEmployeeController extends Controller
 
             if (Schema::hasColumn($table, 'gross_increment_amount')) {
                 $row->gross_increment_amount = $payload['amount'];
+            } elseif (Schema::hasColumn($table, 'new_salary')) {
+                $row->new_salary = $payload['amount'];
             } elseif (Schema::hasColumn($table, 'amount')) {
                 $row->amount = $payload['amount'];
             }
@@ -1118,48 +1151,7 @@ class HrEmployeeController extends Controller
     {
         $this->ensureEmployee($employee);
 
-        $allowed = [
-            'profile',
-            'salary',
-            'nominee',
-            'age-verification',
-            'leave',
-            'id-card',
-            'final-settlement',
-        ];
-
-        abort_unless(in_array($section, $allowed, true), 404);
-
-        $titles = [
-            'profile' => 'Employee Profile Print',
-            'salary' => 'Employee Salary Print',
-            'nominee' => 'Employee Nominee Print',
-            'age-verification' => 'Employee Age Verification Print',
-            'leave' => 'Employee Leave Print',
-            'id-card' => 'Employee ID Card Print',
-            'final-settlement' => 'Employee Final Settlement Print',
-        ];
-
-        $other = $this->otherInfo($employee);
-        $leaveRows = collect();
-        if ($section === 'leave') {
-            $table = (new Leave())->getTable();
-            if (Schema::hasTable($table)) {
-                $query = Leave::query();
-                if (Schema::hasColumn($table, 'user_id')) {
-                    $query->where('user_id', $employee->id);
-                }
-                $leaveRows = $query->latest()->limit(200)->get();
-            }
-        }
-
-        return view('hr::employees.print.section', [
-            'employee' => $employee,
-            'section' => $section,
-            'title' => $titles[$section],
-            'other' => $other,
-            'leaveRows' => $leaveRows,
-        ]);
+        dd("Print section: {$section} for employee ID: {$employee->id}");
     }
 
     private function options(): array

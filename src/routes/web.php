@@ -26,6 +26,8 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::put('/employees/{employee}/age-verification', [HrEmployeeController::class, 'updateAgeVerification'])->name('employees.age.update');
 		Route::put('/employees/{employee}/resign', [HrEmployeeController::class, 'updateResign'])->name('employees.resign.update');
 		Route::put('/employees/{employee}/final-settlement', [HrEmployeeController::class, 'updateFinalSettlement'])->name('employees.final-settlement.update');
+		Route::put('/employees/{employee}/final-settlement/print', [HrEmployeeController::class, 'updateFinalSettlement'])->name('employees.final-settlement.print');
+
 		Route::put('/employees/{employee}/basic-info', [HrEmployeeController::class, 'updateBasicInfo'])->name('employees.basic-info.update');
 		Route::get('/employees/{employee}/increments', [HrEmployeeController::class, 'incrementsPage'])->name('employees.increments.page');
 		Route::post('/employees/{employee}/increments', [HrEmployeeController::class, 'incrementsStore'])->name('employees.increments.store');
@@ -39,7 +41,7 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::put('/employees/{employee}/leaves', [HrEmployeeController::class, 'leavesUpdate'])->name('employees.leaves.update');
 		Route::delete('/employees/{employee}/leaves', [HrEmployeeController::class, 'leavesDelete'])->name('employees.leaves.delete');
 		Route::delete('/employees/{employee}', [HrEmployeeController::class, 'destroy'])->name('employees.destroy');
-		Route::get('/employees/{employee}/print/{section}', [HrEmployeeController::class, 'printSection'])->name('employees.print.section');
+		// Route::get('/employees/{employee}/print/{section}', [HrEmployeeController::class, 'printSection'])->name('employees.print.section');
 		Route::get('/reports', [HrReportController::class, 'index'])->name('reports.index');
 		Route::get('/reports/{report}', [HrReportController::class, 'show'])->name('reports.show');
 		Route::post('/reports/monthly/lock-increment', [HrReportController::class, 'lockMonthlyIncrement'])->name('reports.monthly.lock-increment');
