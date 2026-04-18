@@ -300,27 +300,27 @@ return [
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/job-card-report',
                             'icon_color' => 'text-success',
-                            'permission' => 'hr',
+                            'permission' => 'dev',
                         ],
                         [
                             'title'      => 'Attendance Report',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/attendance-report',
                             'icon_color' => 'text-success',
-                            'permission' => 'hr',
+                            'permission' => 'dev',
                         ],
                         [
                             'title'      => 'Tiffin / Diner / Night',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/meal-report',
                             'icon_color' => 'text-success',
-                            'permission' => 'hr',
+                            'permission' => 'dev',
                         ],
                         [
                             'title'      => 'Bonus Sheet',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'icon_color' => 'text-success',
-                            'permission' => 'hr',
+                            'permission' => 'dev',
                             'children'   => [
                                 [
                                     'title'      => 'Fixed',
@@ -342,7 +342,7 @@ return [
                             'title'      => 'Salary Report',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'icon_color' => 'text-success',
-                            'permission' => 'hr',
+                            'permission' => 'dev',
                             'children'   => [
                                 [
                                     'title'      => 'Fixed Salary',
