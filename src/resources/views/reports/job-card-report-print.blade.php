@@ -197,7 +197,10 @@
                             @endphp
                             <td class="tc" style="font-size:9px;">
                                 @if($pres)
-                                    A@if($otMin > 0) | {{ number_format($otMin/60,2) }}@endif
+                                    A
+                                    @if($otMin > 0)
+                                        | {{ number_format($otMin/60,2) }}
+                                    @endif
                                 @else
                                     0
                                 @endif
