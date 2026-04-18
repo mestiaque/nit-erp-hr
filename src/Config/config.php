@@ -197,7 +197,7 @@ return [
             'fields' => [
                 'name' => ['label' => 'Name', 'type' => 'text', 'rules' => 'required|string|max:191'],
                 'bn_name' => ['label' => 'Bangla Name', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
-                'grade_id' => ['label' => 'Grade', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'grades']],
+                'grade_id' => ['label' => 'Grade', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
                 'approved_manpower' => ['label' => 'Approved Manpower', 'type' => 'number', 'rules' => 'nullable|integer|min:0'],
                 'department_id' => ['label' => 'Department', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'department']],
                 'section_id' => ['label' => 'Section', 'type' => 'select', 'rules' => 'nullable|integer', 'source' => ['driver' => 'attribute', 'filter' => 'sections']],
