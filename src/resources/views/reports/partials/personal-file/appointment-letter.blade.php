@@ -47,15 +47,19 @@
     ])->filter(fn ($v) => filled($v))->implode(', ');
     $presentAddress = $presentAddress ?: data_get($employee, 'address', $na);
     $permanentAddress = $permanentAddress ?: data_get($employee, 'address', $na);
-
-    $gross = (float) ($employee->gross_salary ?? 0);
-    $basic = (float) ($employee->basic_salary ?? 0);
-    $house = (float) ($employee->house_rent ?? 0);
-    $medical = (float) ($employee->medical_allowance ?? 0);
-    $transport = (float) ($employee->transport_allowance ?? 0);
-    $food = (float) ($employee->food_allowance ?? 0);
-    $otRate = $basic > 0 ? round(($basic / 208) * 2, 2) : 0;
+	// Resolve salary breakdown via compliance-aware helper (factory_no determines gross source & deduction base)
+	$sal        = hr_employee_salary($employee, $factory ?? null, $salaryKey ?? null);
+	$gross      = $sal['gross'];
+	$basic      = $sal['basic'];
+	$house      = $sal['house'];
+	$medical    = $sal['medical'];
+	$transport  = $sal['transport'];
+	$food       = $sal['food'];
+	$ot_rate    = $sal['ot_rate'];
+	$deductFrom = $sal['deduct_from']; // 'gross' (factory_no=0) or 'basic' (factory_no=1/2)
 @endphp
+
+
 
 <div class="letter-box" style="border:none; padding:0; margin-top:0;">
     <div class="company-head" style="margin-bottom:10px;">
@@ -103,7 +107,7 @@
                 <tr><td>{{ $t('যাতায়াত ভাতা', 'Transport Allowance') }}</td><td>{{ $t('টাকা', 'BDT') }}</td><td>{{ number_format($transport, 2) }}</td></tr>
                 <tr><td>{{ $t('খাদ্য ভাতা', 'Food Allowance') }}</td><td>{{ $t('টাকা', 'BDT') }}</td><td>{{ number_format($food, 2) }}</td></tr>
                 <tr><td><strong>{{ $t('মাসিক মোট বেতন', 'Monthly Gross Salary') }}</strong></td><td>{{ $t('টাকা', 'BDT') }}</td><td><strong>{{ number_format($gross, 2) }}</strong></td></tr>
-                <tr><td>{{ $t('ওভারটাইম হার (ঘন্টা)', 'Overtime Rate (Per Hour)') }}</td><td>{{ $t('টাকা', 'BDT') }}</td><td>{{ number_format($otRate, 2) }}</td></tr>
+                <tr><td>{{ $t('ওভারটাইম হার (ঘন্টা)', 'Overtime Rate (Per Hour)') }}</td><td>{{ $t('টাকা', 'BDT') }}</td><td>{{ number_format($ot_rate, 2) }}</td></tr>
             </tbody>
         </table>
 

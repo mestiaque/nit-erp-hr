@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HrHolidayController;
 use Illuminate\Support\Facades\Route;
 use ME\Hr\Http\Controllers\HrController;
 use ME\Hr\Http\Controllers\HrDashboardController;
@@ -45,6 +46,12 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::get('/reports', [HrReportController::class, 'index'])->name('reports.index');
 		Route::get('/reports/{report}', [HrReportController::class, 'show'])->name('reports.show');
 		Route::post('/reports/monthly/lock-increment', [HrReportController::class, 'lockMonthlyIncrement'])->name('reports.monthly.lock-increment');
+		Route::post('/reports/job-card-report/lock', [HrReportController::class, 'applyJobCardLock'])->name('reports.job-card-report.lock');
+
+		Route::get('/holidays', [HrHolidayController::class, 'index'])->name('holidays.index');
+		Route::post('/holidays', [HrHolidayController::class, 'store'])->name('holidays.store');
+		Route::put('/holidays/{id}', [HrHolidayController::class, 'update'])->name('holidays.update');
+		Route::delete('/holidays/{id}', [HrHolidayController::class, 'destroy'])->name('holidays.destroy');
 
 		Route::get('/masters/{entity}', [HrMasterController::class, 'index'])->name('masters.index');
 		Route::get('/masters/{entity}/create', [HrMasterController::class, 'create'])->name('masters.create');

@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\BonusPolicy;
+use ME\Hr\Models\BonusTitle;
 use ME\Hr\Models\Designation;
+use ME\Hr\Models\SalarySheet;
 use ME\Hr\Models\ProductionBonus;
 use ME\Hr\Models\Shift;
 use ME\Hr\Models\SubSection;
@@ -104,6 +106,26 @@ class HrReportController extends Controller
 
         if ($report === 'personal-file') {
             return $this->personalFileReportScreen($request, $report);
+        }
+
+        if ($report === 'job-card-report') {
+            return $this->jobCardReportScreen($request, $report);
+        }
+
+        if ($report === 'attendance-report') {
+            return $this->attendanceReportScreen($request, $report);
+        }
+
+        if ($report === 'meal-report') {
+            return $this->mealReportScreen($request, $report);
+        }
+
+        if ($report === 'bonus-sheet') {
+            return $this->bonusSheetScreen($request, $report);
+        }
+
+        if ($report === 'salary-report') {
+            return $this->salaryReportScreen($request, $report);
         }
 
         [$columns, $rows] = match ($report) {
@@ -697,6 +719,16 @@ class HrReportController extends Controller
             $query->where('employee_id', 'like', '%' . trim((string) $request->employee_id) . '%');
         }
 
+        if ($request->filled('employee_ids')) {
+            $ids = collect(explode(',', (string) $request->employee_ids))
+                ->map(fn ($id) => trim($id))
+                ->filter()
+                ->values();
+            if ($ids->isNotEmpty()) {
+                $query->whereIn('employee_id', $ids->all());
+            }
+        }
+
         if ($request->filled('classification')) {
             $query->where('employee_type', (int) $request->classification);
         }
@@ -710,11 +742,23 @@ class HrReportController extends Controller
         }
 
         if ($request->filled('sub_section')) {
-            $query->where('sub_section_id', (int) $request->sub_section);
+            $subSectionCol = Schema::hasColumn('users', 'sub_section_id') ? 'sub_section_id'
+                : (Schema::hasColumn('users', 'hr_sub_section_id') ? 'hr_sub_section_id' : null);
+            if ($subSectionCol) {
+                $query->where($subSectionCol, (int) $request->sub_section);
+            }
         }
 
         if ($request->filled('working_place')) {
-            $query->where('working_place_id', (int) $request->working_place);
+            $wpCol = Schema::hasColumn('users', 'working_place_id') ? 'working_place_id'
+                : (Schema::hasColumn('users', 'hr_working_place_id') ? 'hr_working_place_id' : null);
+            if ($wpCol) {
+                $query->where($wpCol, (int) $request->working_place);
+            }
+        }
+
+        if ($request->filled('shift')) {
+            $query->where('shift_id', (int) $request->shift);
         }
 
         if ($request->filled('line_number')) {
@@ -776,6 +820,7 @@ class HrReportController extends Controller
             'lines' => Attribute::where('type', 4)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name', 'slug']),
             'designations' => Attribute::where('type', 2)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'workingPlaces' => WorkingPlace::orderBy('name')->get(['id', 'name']),
+            'shifts' => Shift::orderBy('name_of_shift')->get(['id', 'name_of_shift']),
             'gender' => $genderOptions,
             'employeeStatuses' => collect([
                 ['id' => 'regular', 'name' => 'Regular'],
@@ -1271,6 +1316,415 @@ class HrReportController extends Controller
             ->map(fn ($row) => ['department' => $row->department ?: 'Undefined', 'total_employee' => $row->total_employee, 'gross_salary' => $row->gross_salary, 'basic_salary' => $row->basic_salary]);
 
         return [['department', 'total_employee', 'gross_salary', 'basic_salary'], $rows];
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // JOB CARD REPORT
+    // ──────────────────────────────────────────────────────────────────
+
+    private function jobCardReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+        $reportTypes = [
+            'job-card'              => 'Job Card',
+            'job-card-summary'      => 'Job Card Summary',
+            'job-card-lock'         => 'Job Card (Lock)',
+            'job-card-summary-lock' => 'Job Card Summary (Lock)',
+            'attendance-summary'    => 'Attendance Summary',
+            'ot-details'            => 'OT Details',
+            'ot-summary'            => 'OT Summary',
+        ];
+
+        if ($request->boolean('print')) {
+            $from = $request->input('from') ?: now()->toDateString();
+            $to   = $request->input('to') ?: $from;
+            $reportType = $request->input('report_type', 'job-card');
+            if (!array_key_exists($reportType, $reportTypes)) {
+                $reportType = 'job-card';
+            }
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            // Build date range collection
+            $dates = collect();
+            $cur = \Carbon\Carbon::parse($from);
+            $end = \Carbon\Carbon::parse($to);
+            while ($cur->lte($end)) {
+                $dates->push($cur->copy());
+                $cur->addDay();
+            }
+
+            // Attendance keyed by "user_id_date"
+            $attendanceMap = \ME\Hr\Models\Attendance::query()
+                ->whereIn('user_id', $employees->pluck('id'))
+                ->whereBetween('date', [$from, $to])
+                ->get()
+                ->groupBy(fn ($a) => $a->user_id . '_' . $a->date);
+
+            $departmentMap   = collect($options['departments'])->pluck('name', 'id');
+            $sectionMap      = collect($options['sections'])->pluck('name', 'id');
+            $subSectionMap   = collect($options['subSections'])->pluck('name', 'id');
+            $designationMap  = collect($options['designations'])->pluck('name', 'id');
+            $classificationMap = collect($options['classifications'])->pluck('name', 'id');
+            $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
+                $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
+            ]);
+            $shiftMap = Shift::query()->pluck('name_of_shift', 'id');
+
+            return view('hr::reports.job-card-report-print', compact(
+                'request', 'employees', 'attendanceMap', 'dates',
+                'from', 'to', 'reportType', 'reportTypes',
+                'departmentMap', 'sectionMap', 'subSectionMap',
+                'designationMap', 'classificationMap', 'lineMap', 'shiftMap'
+            ) + [
+                'fromLabel' => \Carbon\Carbon::parse($from)->format('d-M-Y'),
+                'toLabel'   => \Carbon\Carbon::parse($to)->format('d-M-Y'),
+                'reportTypeLabel' => $reportTypes[$reportType],
+            ]);
+        }
+
+        return view('hr::reports.job-card-report', [
+            'reportKey'   => $report,
+            'reportTitle' => config('hr.reports.' . $report),
+            'options'     => $options,
+            'reportTypes' => $reportTypes,
+            'request'     => $request,
+        ]);
+    }
+
+    public function applyJobCardLock(Request $request)
+    {
+        $from = $request->input('from') ?: now()->toDateString();
+        $to   = $request->input('to') ?: $from;
+
+        $employees = $this->employeeReportQuery($request)->get(['id', 'other_information']);
+
+        DB::transaction(function () use ($employees, $from, $to) {
+            foreach ($employees as $employee) {
+                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = is_array($other) ? $other : [];
+                $lockKey = 'job_card_lock';
+                if (!isset($other[$lockKey])) {
+                    $other[$lockKey] = [];
+                }
+                $key = $from . '_' . $to;
+                $other[$lockKey][$key] = [
+                    'locked_at' => now()->toDateTimeString(),
+                    'locked_by' => Auth::id(),
+                ];
+                $employee->other_information = json_encode($other);
+                $employee->save();
+            }
+        });
+
+        return back()->with('success', 'Job card locked for selected period.');
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // ATTENDANCE REPORT
+    // ──────────────────────────────────────────────────────────────────
+
+    private function attendanceReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+        $attendanceTypes = [
+            'P'  => 'Present',
+            'A'  => 'Absent',
+            'L'  => 'Leave',
+            'H'  => 'Holiday',
+            'W'  => 'Weekend',
+            'OT' => 'OT Only',
+        ];
+
+        if ($request->boolean('print')) {
+            $date = $request->input('date') ?: now()->toDateString();
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $attendanceMap = \ME\Hr\Models\Attendance::query()
+                ->whereIn('user_id', $employees->pluck('id'))
+                ->whereDate('date', $date)
+                ->get()
+                ->keyBy('user_id');
+
+            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
+            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
+            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $shiftMap       = Shift::query()->pluck('name_of_shift', 'id');
+
+            return view('hr::reports.attendance-report-print', compact(
+                'request', 'employees', 'attendanceMap', 'date',
+                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap'
+            ) + [
+                'dateLabel' => \Carbon\Carbon::parse($date)->format('d-M-Y'),
+            ]);
+        }
+
+        return view('hr::reports.attendance-report', [
+            'reportKey'        => $report,
+            'reportTitle'      => config('hr.reports.' . $report),
+            'options'          => $options,
+            'attendanceTypes'  => $attendanceTypes,
+            'request'          => $request,
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // MEAL (TIFFIN / DINER / NIGHT) REPORT
+    // ──────────────────────────────────────────────────────────────────
+
+    private function mealReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+        $mealTypes = [
+            'tiffin' => 'Tiffin',
+            'dinner' => 'Dinner / Diner',
+            'night'  => 'Night',
+        ];
+        $reportTypes = [
+            'details' => 'Details',
+            'summary' => 'Summary',
+        ];
+
+        if ($request->boolean('print')) {
+            $date     = $request->input('date') ?: now()->toDateString();
+            $mealType = $request->input('meal_type', 'tiffin');
+            if (!array_key_exists($mealType, $mealTypes)) {
+                $mealType = 'tiffin';
+            }
+            $reportType = $request->input('report_type', 'details');
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $attendanceMap = \ME\Hr\Models\Attendance::query()
+                ->whereIn('user_id', $employees->pluck('id'))
+                ->whereDate('date', $date)
+                ->get()
+                ->keyBy('user_id');
+
+            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
+            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
+            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $shiftMap       = Shift::query()->pluck('name_of_shift', 'id');
+
+            // Meal eligibility: check shift meal options
+            $shifts = Shift::query()->get()->keyBy('id');
+
+            return view('hr::reports.meal-report-print', compact(
+                'request', 'employees', 'attendanceMap', 'date',
+                'mealType', 'reportType', 'mealTypes', 'reportTypes',
+                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap', 'shifts'
+            ) + [
+                'dateLabel'     => \Carbon\Carbon::parse($date)->format('d-M-Y'),
+                'mealTypeLabel' => $mealTypes[$mealType],
+            ]);
+        }
+
+        return view('hr::reports.meal-report', [
+            'reportKey'   => $report,
+            'reportTitle' => config('hr.reports.' . $report),
+            'options'     => $options,
+            'mealTypes'   => $mealTypes,
+            'reportTypes' => $reportTypes,
+            'request'     => $request,
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // BONUS SHEET
+    // ──────────────────────────────────────────────────────────────────
+
+    private function bonusSheetScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+        $bonusTitles = BonusTitle::where('status', 'active')->orderBy('title')->get(['id', 'title', 'bn_title']);
+        $bonusCategories = [
+            'fixed'      => 'Fixed',
+            'production' => 'Production',
+        ];
+        $reportTypes = [
+            'details' => 'Details',
+            'summary' => 'Summary',
+        ];
+
+        if ($request->boolean('print')) {
+            $category   = $request->input('bonus_category', 'fixed');
+            $upToDate   = $request->input('up_to_date') ?: now()->toDateString();
+            $fromDate   = $request->input('from') ?: now()->startOfMonth()->toDateString();
+            $toDate     = $request->input('to') ?: $upToDate;
+            $reportType = $request->input('report_type', 'details');
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('department_id')
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $departmentMap  = collect($options['departments'])->pluck('name', 'id');
+            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
+            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
+            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
+                $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
+            ]);
+
+            $bonusTitleId = $request->input('bonus_title');
+            $bonusTitle   = $bonusTitleId ? BonusTitle::find($bonusTitleId) : null;
+
+            // For fixed bonus: calculate based on gross salary attendance %
+            // For production bonus: based on from-to date range
+            $attendanceSummary = [];
+            if ($category === 'fixed') {
+                // Count present days up to upToDate for current month
+                $monthStart = \Carbon\Carbon::parse($upToDate)->startOfMonth()->toDateString();
+                $atts = \ME\Hr\Models\Attendance::query()
+                    ->whereIn('user_id', $employees->pluck('id'))
+                    ->whereBetween('date', [$monthStart, $upToDate])
+                    ->get()
+                    ->groupBy('user_id');
+
+                $workingDays = \Carbon\Carbon::parse($monthStart)->diffInWeekdays(\Carbon\Carbon::parse($upToDate)) + 1;
+
+                foreach ($employees as $emp) {
+                    $empAtts = $atts->get($emp->id, collect());
+                    $presentDays = $empAtts->filter(fn ($a) => $a->in_time !== null)->count();
+                    $percent = $workingDays > 0 ? round(($presentDays / $workingDays) * 100, 0) : 0;
+                    $attendanceSummary[$emp->id] = [
+                        'present' => $presentDays,
+                        'working' => $workingDays,
+                        'percent' => $percent,
+                    ];
+                }
+            } else {
+                // Production: attendance over from-to range
+                $atts = \ME\Hr\Models\Attendance::query()
+                    ->whereIn('user_id', $employees->pluck('id'))
+                    ->whereBetween('date', [$fromDate, $toDate])
+                    ->get()
+                    ->groupBy('user_id');
+
+                foreach ($employees as $emp) {
+                    $empAtts = $atts->get($emp->id, collect());
+                    $presentDays = $empAtts->filter(fn ($a) => $a->in_time !== null)->count();
+                    $attendanceSummary[$emp->id] = ['present' => $presentDays];
+                }
+            }
+
+            return view('hr::reports.bonus-sheet-print', compact(
+                'request', 'employees', 'category', 'upToDate', 'fromDate', 'toDate',
+                'reportType', 'bonusTitle', 'attendanceSummary',
+                'departmentMap', 'sectionMap', 'subSectionMap', 'designationMap', 'lineMap'
+            ) + [
+                'withPicture'     => $request->boolean('with_picture'),
+                'language'        => $request->input('language', 'en'),
+                'upToDateLabel'   => \Carbon\Carbon::parse($upToDate)->format('d-M-Y'),
+                'fromLabel'       => \Carbon\Carbon::parse($fromDate)->format('d-M-Y'),
+                'toLabel'         => \Carbon\Carbon::parse($toDate)->format('d-M-Y'),
+                'categoryLabel'   => $bonusCategories[$category] ?? 'Fixed',
+            ]);
+        }
+
+        return view('hr::reports.bonus-sheet', [
+            'reportKey'       => $report,
+            'reportTitle'     => config('hr.reports.' . $report),
+            'options'         => $options,
+            'bonusTitles'     => $bonusTitles,
+            'bonusCategories' => $bonusCategories,
+            'reportTypes'     => $reportTypes,
+            'request'         => $request,
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // SALARY REPORT
+    // ──────────────────────────────────────────────────────────────────
+
+    private function salaryReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+        $bonusTitles = BonusTitle::where('status', 'active')->orderBy('title')->get(['id', 'title']);
+        $reportTypes = [
+            'fixed'                  => 'Fixed Salary',
+            'production'             => 'Production Salary',
+            'bonus'                  => 'Bonus Salary',
+            'wages-salary-summary'   => 'Wages & Salary Summary',
+        ];
+        $paymentModes = User::query()
+            ->filterByType('employee')
+            ->whereNotNull('salary_type')
+            ->distinct()
+            ->pluck('salary_type')
+            ->filter()
+            ->values();
+
+        if ($request->boolean('print')) {
+            $from       = $request->input('from') ?: now()->startOfMonth()->toDateString();
+            $to         = $request->input('to') ?: now()->toDateString();
+            $reportType = $request->input('report_type', 'fixed');
+            if (!array_key_exists($reportType, $reportTypes)) {
+                $reportType = 'fixed';
+            }
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('department_id')
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $departmentMap  = collect($options['departments'])->pluck('name', 'id');
+            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
+            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
+            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
+                $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
+            ]);
+
+            // Load salary sheets for the date range
+            $fromMonth = \Carbon\Carbon::parse($from)->month;
+            $fromYear  = \Carbon\Carbon::parse($from)->year;
+            $toMonth   = \Carbon\Carbon::parse($to)->month;
+            $toYear    = \Carbon\Carbon::parse($to)->year;
+
+            $salarySheets = \ME\Hr\Models\SalarySheet::query()
+                ->whereIn('user_id', $employees->pluck('id'))
+                ->where(function ($q) use ($fromYear, $fromMonth, $toYear, $toMonth) {
+                    $q->whereRaw("(year > ? OR (year = ? AND month >= ?))", [$fromYear, $fromYear, $fromMonth])
+                      ->whereRaw("(year < ? OR (year = ? AND month <= ?))", [$toYear, $toYear, $toMonth]);
+                })
+                ->get()
+                ->groupBy('user_id');
+
+            return view('hr::reports.salary-report-print', compact(
+                'request', 'employees', 'salarySheets', 'from', 'to',
+                'reportType', 'reportTypes',
+                'departmentMap', 'sectionMap', 'subSectionMap', 'designationMap', 'lineMap'
+            ) + [
+                'withPicture'      => $request->boolean('with_picture'),
+                'language'         => $request->input('language', 'en'),
+                'fromLabel'        => \Carbon\Carbon::parse($from)->format('d-M-Y'),
+                'toLabel'          => \Carbon\Carbon::parse($to)->format('d-M-Y'),
+                'reportTypeLabel'  => $reportTypes[$reportType],
+            ]);
+        }
+
+        return view('hr::reports.salary-report', [
+            'reportKey'    => $report,
+            'reportTitle'  => config('hr.reports.' . $report),
+            'options'      => $options,
+            'bonusTitles'  => $bonusTitles,
+            'reportTypes'  => $reportTypes,
+            'paymentModes' => $paymentModes,
+            'request'      => $request,
+        ]);
     }
 }
 

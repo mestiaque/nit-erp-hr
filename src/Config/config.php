@@ -426,5 +426,11 @@ return [
         'salary-fixed' => 'Salary Fixed',
         'salary-production' => 'Salary Production',
         'salary-summary' => 'Wages And Salary Summary',
+        // Comprehensive new reports
+        'job-card-report' => 'Job Card Report',
+        'attendance-report' => 'Attendance Report',
+        'meal-report' => 'Tiffin / Diner / Night Report',
+        'bonus-sheet' => 'Bonus Sheet',
+        'salary-report' => 'Salary Report',
     ],
 ];

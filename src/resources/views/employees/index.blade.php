@@ -199,6 +199,7 @@
                                 $isActive = (string) ($employee->status ?? '') === '1' || (string) ($employee->status ?? '') === 'active';
                             @endphp
                             <tr>
+                                
                                 <td>{{ $employee->employee_id }}</td>
                                 <td>{{ $employee->name }}</td>
                                 <td>{{ optional($employee->joining_date)->format('d-M-Y') }}</td>
