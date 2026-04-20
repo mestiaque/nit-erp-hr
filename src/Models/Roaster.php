@@ -3,6 +3,8 @@
 namespace ME\Hr\Models;
 
 use ME\Hr\Models\BaseHrModel;
+use App\Models\User;
+use App\Models\Attribute;
 
 class Roaster extends BaseHrModel
 {
@@ -18,7 +20,7 @@ class Roaster extends BaseHrModel
 
     public function employee()
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(User::class, 'employee_id');
     }
     public function shift()
     {
@@ -26,7 +28,7 @@ class Roaster extends BaseHrModel
     }
     public function section()
     {
-        return $this->belongsTo(Section::class);
+        return $this->belongsTo(Attribute::class);
     }
     public function subSection()
     {

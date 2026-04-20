@@ -1,4 +1,6 @@
 @php
+    $other = json_decode($employee->other_information ?? '{}', true);
+    $addressInfo = data_get($other, 'address_info', []);
     $districtNames = collect($options['districts'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();
     $thanaNames = collect($options['thanas'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();
     $permanentDistrict = old('permanent_district', $employee->permanent_district);
@@ -7,6 +9,10 @@
     $presentDistrict = old('present_district', $employee->present_district);
     $presentUpazila = old('present_upazila', $employee->present_upazila);
     $presentPostOffice = old('present_post_office', $employee->present_post_office);
+    $permanentPostOfficeBn = old('permanent_post_office_bn', data_get($addressInfo, 'permanent_post_office_bn'));
+    $permanentVillageBn = old('permanent_village_bn', data_get($addressInfo, 'permanent_village_bn'));
+    $presentPostOfficeBn = old('present_post_office_bn', data_get($addressInfo, 'present_post_office_bn'));
+    $presentVillageBn = old('present_village_bn', data_get($addressInfo, 'present_village_bn'));
 
     $permanentDistrictObj = collect($options['districts'] ?? [])->firstWhere('name', $permanentDistrict);
     $permanentDistrictId = $permanentDistrictObj->id ?? null;
@@ -67,6 +73,14 @@
         <label class="mb-1">Village</label>
         <input type="text" name="permanent_village" value="{{ old('permanent_village', $employee->permanent_village) }}" class="form-control form-control-sm">
     </div>
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Post Office (Bangla)</label>
+        <input type="text" name="permanent_post_office_bn" value="{{ old('permanent_post_office_bn', $permanentPostOfficeBn) }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Village (Bangla)</label>
+        <input type="text" name="permanent_village_bn" value="{{ old('permanent_village_bn', $permanentVillageBn) }}" class="form-control form-control-sm">
+    </div>
 
 
     {{-- ================= PRESENT ADDRESS ================= --}}
@@ -114,6 +128,14 @@
     <div class="col-md-6 mb-2">
         <label class="mb-1">Village</label>
         <input type="text" name="present_village" value="{{ old('present_village', $employee->present_village) }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Post Office (Bangla)</label>
+        <input type="text" name="present_post_office_bn" value="{{ old('present_post_office_bn', $presentPostOfficeBn) }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-6 mb-2">
+        <label class="mb-1">Village (Bangla)</label>
+        <input type="text" name="present_village_bn" value="{{ old('present_village_bn', $presentVillageBn) }}" class="form-control form-control-sm">
     </div>
 
 </div>

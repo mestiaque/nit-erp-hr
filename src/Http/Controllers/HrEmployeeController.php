@@ -253,9 +253,26 @@ class HrEmployeeController extends Controller
             'present_upazila' => 'nullable|string|max:191',
             'present_post_office' => 'nullable|string|max:191',
             'present_village' => 'nullable|string|max:191',
+            'permanent_post_office_bn' => 'nullable|string|max:191',
+            'permanent_village_bn' => 'nullable|string|max:191',
+            'present_post_office_bn' => 'nullable|string|max:191',
+            'present_village_bn' => 'nullable|string|max:191',
         ]);
 
-        $employee->fill($payload);
+        $employee->fill(Arr::except($payload, [
+            'permanent_post_office_bn',
+            'permanent_village_bn',
+            'present_post_office_bn',
+            'present_village_bn',
+        ]));
+        $other = $this->otherInfo($employee);
+        $other['address_info'] = array_merge(data_get($other, 'address_info', []), [
+            'permanent_post_office_bn' => $payload['permanent_post_office_bn'] ?? null,
+            'permanent_village_bn' => $payload['permanent_village_bn'] ?? null,
+            'present_post_office_bn' => $payload['present_post_office_bn'] ?? null,
+            'present_village_bn' => $payload['present_village_bn'] ?? null,
+        ]);
+        $employee->other_information = json_encode($other);
         $employee->setTypes('employee');
         $employee->save();
 
@@ -445,10 +462,14 @@ class HrEmployeeController extends Controller
             'nominee_district' => 'nullable|string|max:191',
             'nominee_po_station' => 'nullable|string|max:191',
             'nominee_post_office' => 'nullable|string|max:191',
+            'nominee_post_office_bn' => 'nullable|string|max:191',
             'nominee_nationality' => 'nullable|string|max:191',
             'nominee_village' => 'nullable|string|max:191',
+            'nominee_village_bn' => 'nullable|string|max:191',
             'nominee_nid' => 'nullable|string|max:100',
             'nominee_mobile' => 'nullable|string|max:30',
+            'nominee_bn_name' => 'nullable|string|max:191',
+            'nominee_relation_bn' => 'nullable|string|max:100',
             'distribution_net_payment' => 'nullable|numeric|min:0|max:100',
             'distribution_provident_fund' => 'nullable|numeric|min:0|max:100',
             'distribution_insurance' => 'nullable|numeric|min:0|max:100',

@@ -16,7 +16,13 @@ class RosterController extends Controller
     public function index()
     {
         $rosters = Roaster::with(['employee', 'shift', 'section', 'subSection'])->orderBy('date', 'desc')->paginate(30);
-        return view('hr::rosters.index', compact('rosters'));
+        $employees = User::filterByType('employee')->get();
+        $masterData = \App\Services\HrOptionsService::getOptions();
+        $shifts = $masterData['shifts'];
+        $sections = $masterData['sections'];
+        $subSections = $masterData['subSections'];
+
+        return view('hr::rosters.index', compact('rosters', 'employees', 'shifts', 'sections', 'subSections'));
     }
 
     public function create()
@@ -32,11 +38,11 @@ class RosterController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'employee_id' => 'nullable|exists:employees,id',
-            'shift_id' => 'required|exists:hr_shifts,id',
+            'employee_id' => 'nullable|exists:users,id',
+            'shift_id' => 'required',
             'date' => 'required|date',
-            'section_id' => 'nullable|exists:sections,id',
-            'sub_section_id' => 'nullable|exists:sub_sections,id',
+            'section_id' => 'nullable',
+            'sub_section_id' => 'nullable',
             'remarks' => 'nullable|string',
         ]);
         Roaster::create($data);
