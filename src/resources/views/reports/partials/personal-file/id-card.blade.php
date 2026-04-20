@@ -112,7 +112,7 @@
             <tr><td>{{ $t('সেকশন', 'Section') }}</td><td>: {{ $section }}</td></tr>
             <tr><td>{{ $t('যোগদানের তারিখ', 'Join Date') }}</td><td>: {{ $joinDate }}</td></tr>
             <tr><td>{{ $t('শ্রেণি', 'Classification') }}</td><td>: {{ $classification }}</td></tr>
-            <tr><td>{{ $t('ইস্যু তারিখ', 'Issue Date') }}</td><td>: {{ $issueDate }}</td></tr>
+            <tr><td>{{ $t('ইস্যু তারিখ', 'Issue Date') }}</td><td>: {{ $joinDate }}</td></tr>
         </table>
 
         <div class="id-sign-row">
