@@ -168,3 +168,10 @@ report e gula add koro , first interface e input  gula thakbe ad sobgukar niche 
     >>Pro. Job Card
     >>Bonus Sheet
     >>Salary Sheet
+
+
+Production Rate
+    >Trimming to Zipper
+Index : th : Local Agent , Buyer, Style Name, Style Number, Gauge, Order Qty, Merchendiser
+    >> assing progress open modal 
+        in row : process, rate, select pro. process

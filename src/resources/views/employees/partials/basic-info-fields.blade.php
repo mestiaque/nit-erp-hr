@@ -33,14 +33,16 @@
     $maritalStatusOptions = $maritalStatusMasterOptions;
     $genderOptions = $genderMasterOptions;
     $religionOptions = $religionMasterOptions;
-    $countryOptions = collect(data_get($options ?? [], 'countries', []))
-        ->pluck('name')
-        ->map(static fn ($value) => trim((string) $value))
-        ->filter(static fn ($value) => $value !== '')
-        ->unique(static fn ($value) => strtolower($value))
-        ->values()
-        ->all();
-    $nationalityOptions = $countryOptions;
+    // $countryOptions = collect(data_get($options ?? [], 'countries', []))
+    //     // ->filter(fn ($country) => (int) data_get($country, 'type') === 1)
+    //     // ->pluck('name')
+    //     // ->map(static fn ($value) => trim((string) $value))
+    //     // ->filter(static fn ($value) => $value !== '')
+    //     // ->unique(static fn ($value) => strtolower($value))
+    //     // ->values()
+    //     ->get(2);
+    // $nationalityOptions = $countryOptions;
+    // dd($nationalityOptions);
 
     $selectedBloodGroup = strtoupper(trim((string) old('blood_group', $employee->blood_group)));
     $selectedPaymentMode = strtolower(trim((string) old('salary_type', $employee->salary_type)));
@@ -106,10 +108,11 @@
     <div class="col-md-6 mb-2">
         <label class="mb-1">Nationality</label>
         <select name="nationality" class="form-control form-control-sm">
-            <option value="">Select</option>
-            @foreach($nationalityOptions as $option)
+            {{-- <option value="">Select</option> --}}
+            <option value="bangladeshi">Bangladeshi</option>
+            {{-- @foreach($nationalityOptions as $option)
                 <option value="{{ $option }}" @selected($selectedNationality === strtolower(trim((string) $option)))>{{ $option }}</option>
-            @endforeach
+            @endforeach --}}
         </select>
     </div>
     <div class="col-md-6 mb-2"><label class="mb-1">National ID No.</label><input type="text" name="nid_number" value="{{ old('nid_number', $employee->nid_number) }}" class="form-control form-control-sm"></div>

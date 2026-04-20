@@ -206,6 +206,13 @@ return [
                     'permission' => 'hr',
                 ],
                 [
+                    'title'      => 'Shift Rostering',
+                    'icon'       => 'fa-solid fa-calendar-days',
+                    'route'      => '/admin/hr-center/rosters',
+                    'icon_color' => 'text-info',
+                    'permission' => 'dev',
+                ],
+                [
                     'title'      => 'Reports',
                     'icon'       => 'fa-solid fa-arrow-right',
                     'icon_color' => 'text-warning',
@@ -325,6 +332,67 @@ return [
                             'icon_color' => 'text-success',
                             'permission' => 'dev',
                         ],
+                    ]
+                ],
+
+
+                [
+                    'title'      => 'Production Rate',
+                    'icon'       => 'fa-solid fa-arrow-right',
+                    'icon_color' => 'text-info',
+                    'permission' => 'dev',
+                    'children'   => [
+                        [
+                            'title'      => 'Linking',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=linking',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+                        [
+                            'title'      => 'Triming',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=triming',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+
+                        [
+                            'title'      => 'Mending',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=mending',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+                        [
+                            'title'      => 'Hole/Button/BarTack',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=hole-button-bartack',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+                        [
+                            'title'      => 'Sewing',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=sewing',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+                        [
+                            'title'      => 'Ironing',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=ironing',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+                        [
+                            'title'      => 'Zipper',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/production-rate?process=zipper',
+                            'icon_color' => 'text-warning',
+                            'permission' => 'hr',
+                        ],
+
                     ]
                 ],
             ]

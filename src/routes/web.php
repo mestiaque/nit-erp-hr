@@ -4,10 +4,12 @@ use Illuminate\Support\Facades\Route;
 use ME\Hr\Http\Controllers\HrController;
 use ME\Hr\Http\Controllers\HrDashboardController;
 use ME\Hr\Http\Controllers\HrEmployeeController;
+use ME\Hr\Http\Controllers\HrHolidayController;
 use ME\Hr\Http\Controllers\HrMasterController;
 use ME\Hr\Http\Controllers\HrReportController;
+use ME\Hr\Http\Controllers\ProductionRateController;
+use ME\Hr\Http\Controllers\RosterController;
 use ME\Hr\Http\Controllers\RegularToWeekendController;
-use ME\Hr\Http\Controllers\HrHolidayController;
 
 $route = config('hr.route');
 
@@ -67,5 +69,19 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::post('/regular-to-weekend', [RegularToWeekendController::class, 'store'])->name('regular-to-weekend.store');
 		Route::put('/regular-to-weekend/{id}', [RegularToWeekendController::class, 'update'])->name('regular-to-weekend.update');
 
-		// Pro. Job Card Report
+		// Production Rate
+		Route::get('/production-rate', [ProductionRateController::class, 'index'])->name('production-rate.index');
+		Route::get('/production-rate/create', [ProductionRateController::class, 'create'])->name('production-rate.create');
+		Route::post('/production-rate', [ProductionRateController::class, 'store'])->name('production-rate.store');
+		Route::get('/production-rate/{id}/edit', [ProductionRateController::class, 'edit'])->name('production-rate.edit');
+		Route::put('/production-rate/{id}', [ProductionRateController::class, 'update'])->name('production-rate.update');
+		Route::delete('/production-rate/{id}', [ProductionRateController::class, 'destroy'])->name('production-rate.destroy');
+		Route::get('/production-rate/{id}/assign-progress', [ProductionRateController::class, 'assignProgress']);
+		Route::post('/production-rate/{id}/assign-progress', [ProductionRateController::class, 'assignProgress'])->name('production-rate.assign-progress');
+
+			// Roster Management
+	Route::get('/rosters', [RosterController::class, 'index'])->name('rosters.index');
+	Route::get('/rosters/create', [RosterController::class, 'create'])->name('rosters.create');
+	Route::post('/rosters', [RosterController::class, 'store'])->name('rosters.store');
+	Route::delete('/rosters/{id}', [RosterController::class, 'destroy'])->name('rosters.destroy');
 	});
