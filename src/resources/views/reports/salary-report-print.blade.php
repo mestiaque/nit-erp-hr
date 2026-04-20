@@ -18,7 +18,6 @@
 .photo-cell img { max-width:28px; max-height:34px; }
 </style>
 @endpush
-
 @section('contents')
 @php
     $company = general()->title ?? 'Company Name';
@@ -33,52 +32,104 @@
     $subSectionMap = collect($hrOptions['subSections'])->pluck('name', 'id');
     $designationMap = collect($hrOptions['designations'])->pluck('name', 'id');
 
-    // Helper: aggregate earnings_deductions JSON entries within date range
+    // Helper: aggregate earnings_deductions entries within date range
+    // Rule:
+    // - OT(+): earning, OT(-): deduction (hour based)
+    // - Day(+): earning, Day(-): deduction (day based)
+    // - Earnings -> earning side
+    // - Deductions -> deduction side
+    // - Advance/IOU -> earning side
     $empExtras = function($emp) use ($from, $to) {
         $other   = json_decode($emp->other_information ?? '{}', true);
         $entries = data_get($other, 'earnings_deductions', []);
-        $earnings    = 0;
-        $deductions  = 0;
-        $advanceIou  = 0;
-        $otHours     = 0;
+        $earnings    = 0.0;
+        $deductions  = 0.0;
+        $advanceIou  = 0.0;
+        $otPlusHours = 0.0;
+        $otMinusHours = 0.0;
+        $dayPlus     = 0.0;
+        $dayMinus    = 0.0;
+
         foreach ($entries as $entry) {
             $date = data_get($entry, 'date');
             if ($date && $date >= $from && $date <= $to) {
                 $earnings   += (float) data_get($entry, 'earnings',    0);
                 $deductions += (float) data_get($entry, 'deductions',  0);
                 $advanceIou += (float) data_get($entry, 'advance_iou', 0);
-                $otHours    += (float) data_get($entry, 'ot',          0);
+                $otHours = (float) data_get($entry, 'ot', 0);
+                if ($otHours >= 0) {
+                    $otPlusHours += $otHours;
+                } else {
+                    $otMinusHours += abs($otHours);
+                }
+
+                $days = (float) data_get($entry, 'day', 0);
+                if ($days >= 0) {
+                    $dayPlus += $days;
+                } else {
+                    $dayMinus += abs($days);
+                }
             }
         }
-        return compact('earnings', 'deductions', 'advanceIou', 'otHours');
+        return compact('earnings', 'deductions', 'advanceIou', 'otPlusHours', 'otMinusHours', 'dayPlus', 'dayMinus');
     };
 
     // Helper: aggregate salary sheets for an employee; falls back to profile salary when no sheets exist
     $empSalary = function($userId, $emp = null) use ($salarySheets, $empExtras) {
         $sheets = $salarySheets->get($userId, collect());
+        $sal      = $emp ? hr_employee_salary($emp) : [];
+        $extras   = $emp ? $empExtras($emp) : [
+            'earnings' => 0, 'deductions' => 0, 'advanceIou' => 0,
+            'otPlusHours' => 0, 'otMinusHours' => 0, 'dayPlus' => 0, 'dayMinus' => 0,
+        ];
+
+        $otRate = (float) ($sal['ot_rate'] ?? 0);
+
         if ($sheets->isNotEmpty()) {
+            $gross = (float) $sheets->sum('gross_salary');
+            $basic = (float) $sheets->sum('basic_salary');
+            $deductFrom = (string) ($sal['deduct_from'] ?? 'gross');
+            $dayBase = $deductFrom === 'basic' ? $basic : $gross;
+            $dayRate = $dayBase > 0 ? ($dayBase / 30) : 0;
+
+            $otEarn   = $extras['otPlusHours'] * $otRate;
+            $otDeduct = $extras['otMinusHours'] * $otRate;
+            $dayEarn  = $extras['dayPlus'] * $dayRate;
+            $dayDeduct = $extras['dayMinus'] * $dayRate;
+
+            $extraEarningAmount = $extras['earnings'] + $extras['advanceIou'] + $otEarn + $dayEarn;
+            $extraDeductionAmount = $extras['deductions'] + $otDeduct + $dayDeduct;
+            $totalEarn = $extraEarningAmount;
+            $totalDeduct = $extraDeductionAmount;
+
             return [
-                'gross'        => $sheets->sum('gross_salary'),
-                'basic'        => $sheets->sum('basic_salary'),
-                'total_earn'   => $sheets->sum('total_earning'),
-                'total_deduct' => $sheets->sum('total_deduction'),
-                'net'          => $sheets->sum('net_salary'),
-                'ot'           => $sheets->sum('overtime_amount'),
+                'gross'        => $gross,
+                'basic'        => $basic,
+                'total_earn'   => $totalEarn,
+                'total_deduct' => $totalDeduct,
+                'net'          => $gross + $totalEarn - $totalDeduct,
+                'ot'           => $otEarn - $otDeduct,
                 'present'      => $sheets->sum('present_days'),
                 'absent'       => $sheets->sum('absent_days'),
             ];
         }
-        // Fallback: use hr_employee_salary() helper for proper basic/OT-rate calculation
-        $sal      = $emp ? hr_employee_salary($emp) : [];
+
+        // Fallback: use hr_employee_salary() helper
         $gross    = (float) ($sal['gross']    ?? $emp->gross_salary ?? 0);
         $basic    = (float) ($sal['basic']    ?? $emp->basic_salary ?? 0);
-        $otRate   = (float) ($sal['ot_rate']  ?? 0);
+        $deductFrom = (string) ($sal['deduct_from'] ?? 'gross');
+        $dayBase = $deductFrom === 'basic' ? $basic : $gross;
+        $dayRate = $dayBase > 0 ? ($dayBase / 30) : 0;
 
-        $extras      = $emp ? $empExtras($emp) : ['earnings' => 0, 'deductions' => 0, 'advanceIou' => 0, 'otHours' => 0];
-        $otAmount    = $extras['otHours'] * $otRate;
-        $totalEarn   = $gross + $extras['earnings'] + $otAmount;
-        $totalDeduct = $extras['deductions'] + $extras['advanceIou'];
-        $net         = $totalEarn - $totalDeduct;
+        $otEarn   = $extras['otPlusHours'] * $otRate;
+        $otDeduct = $extras['otMinusHours'] * $otRate;
+        $dayEarn  = $extras['dayPlus'] * $dayRate;
+        $dayDeduct = $extras['dayMinus'] * $dayRate;
+        $extraEarningAmount = $extras['earnings'] + $extras['advanceIou'] + $otEarn + $dayEarn;
+        $extraDeductionAmount = $extras['deductions'] + $otDeduct + $dayDeduct;
+        $totalEarn   = $extraEarningAmount;
+        $totalDeduct = $extraDeductionAmount;
+        $net         = $gross + $totalEarn - $totalDeduct;
 
         return [
             'gross'        => $gross,
@@ -86,7 +137,7 @@
             'total_earn'   => $totalEarn,
             'total_deduct' => $totalDeduct,
             'net'          => $net,
-            'ot'           => $otAmount,
+            'ot'           => $otEarn - $otDeduct,
             'present'      => 0,
             'absent'       => 0,
         ];

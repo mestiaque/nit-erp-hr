@@ -18,6 +18,7 @@
     $employeePhoto = method_exists($employee, 'image') ? $employee->image() : null;
     $dob = data_get($employee, 'date_of_birth', data_get($employee, 'dob'));
     $employeeAge = '';
+    $joinDate = $fmtDate($employee->joining_date);
 
     if (filled($dob)) {
         try {
@@ -84,7 +85,7 @@
         <td style="width:50%; vertical-align:top;">
             <table style="width:100%; border:none; font-size:15px;">
                 <tr><td>{{ $t('১. আই.ডি নম্বর', '1. Employee ID') }}: {{ $employeeId }}</td></tr>
-                <tr><td>{{ $t('তারিখ', 'Date') }}: {{ now()->format('d/m/Y') }}</td></tr>
+                <tr><td>{{ $t('তারিখ', 'Date') }}: {{ $joinDate ?: $na }}</td></tr>
                 <tr><td>{{ $t('২. নাম', '2. Name') }}: {{ $employeeName }}</td></tr>
                 <tr><td>{{ $t('৩. পিতার নাম', '3. Father Name') }}: {{ data_get($employee, 'father_name', $na) }}</td></tr>
                 <tr><td>{{ $t('৪. মাতার নাম', '4. Mother Name') }}: {{ data_get($employee, 'mother_name', $na) }}</td></tr>
