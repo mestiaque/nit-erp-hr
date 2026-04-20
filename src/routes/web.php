@@ -1,12 +1,13 @@
 <?php
 
-use App\Http\Controllers\HrHolidayController;
 use Illuminate\Support\Facades\Route;
 use ME\Hr\Http\Controllers\HrController;
 use ME\Hr\Http\Controllers\HrDashboardController;
 use ME\Hr\Http\Controllers\HrEmployeeController;
 use ME\Hr\Http\Controllers\HrMasterController;
 use ME\Hr\Http\Controllers\HrReportController;
+use ME\Hr\Http\Controllers\RegularToWeekendController;
+use ME\Hr\Http\Controllers\HrHolidayController;
 
 $route = config('hr.route');
 
@@ -14,9 +15,9 @@ Route::middleware(['web'])->get('/hr', [HrController::class, 'index']);
 Route::get('/thanas/by-district/{id}', [HrController::class, 'getThanasByDistrict']);
 
 Route::middleware($route['middleware'] ?? ['web'])
-	->prefix($route['prefix'] ?? 'admin/hr-center')
-	->name($route['as'] ?? 'hr-center.')
-	->group(function () {
+    ->prefix($route['prefix'] ?? 'admin/hr-center')
+    ->name($route['as'] ?? 'hr-center.')
+    ->group(function () {
 		Route::get('/', [HrDashboardController::class, 'index'])->name('dashboard');
 		Route::get('/employees', [HrEmployeeController::class, 'index'])->name('employees.index');
 		Route::post('/employees', [HrEmployeeController::class, 'store'])->name('employees.store');
@@ -43,6 +44,7 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::delete('/employees/{employee}/leaves', [HrEmployeeController::class, 'leavesDelete'])->name('employees.leaves.delete');
 		Route::delete('/employees/{employee}', [HrEmployeeController::class, 'destroy'])->name('employees.destroy');
 		// Route::get('/employees/{employee}/print/{section}', [HrEmployeeController::class, 'printSection'])->name('employees.print.section');
+		Route::get('/reports/pro-job-card', [HrReportController::class, 'proJobCard'])->name('reports.pro-job-card');
 		Route::get('/reports', [HrReportController::class, 'index'])->name('reports.index');
 		Route::get('/reports/{report}', [HrReportController::class, 'show'])->name('reports.show');
 		Route::post('/reports/monthly/lock-increment', [HrReportController::class, 'lockMonthlyIncrement'])->name('reports.monthly.lock-increment');
@@ -59,4 +61,11 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::get('/masters/{entity}/{id}/edit', [HrMasterController::class, 'edit'])->name('masters.edit');
 		Route::put('/masters/{entity}/{id}', [HrMasterController::class, 'update'])->name('masters.update');
 		Route::delete('/masters/{entity}/{id}', [HrMasterController::class, 'destroy'])->name('masters.destroy');
+
+		// Regular to Weekend
+		Route::get('/regular-to-weekend', [RegularToWeekendController::class, 'index'])->name('regular-to-weekend.index');
+		Route::post('/regular-to-weekend', [RegularToWeekendController::class, 'store'])->name('regular-to-weekend.store');
+		Route::put('/regular-to-weekend/{id}', [RegularToWeekendController::class, 'update'])->name('regular-to-weekend.update');
+
+		// Pro. Job Card Report
 	});

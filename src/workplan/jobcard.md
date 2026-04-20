@@ -152,3 +152,19 @@ salary
 
 
 report e gula add koro , first interface e input  gula thakbe ad sobgukar niche [report] btn thakbe click korle printMaster2 te print hobe new tab
+
+
+
+
+
+>report
+    >>empoloyee
+    >>monthly
+    >>machine id
+    >>job card report
+    >>personal file
+    >>attendance
+    >>Tifin/Night/Diner
+    >>Pro. Job Card
+    >>Bonus Sheet
+    >>Salary Sheet

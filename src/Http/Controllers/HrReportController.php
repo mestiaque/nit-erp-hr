@@ -12,16 +12,43 @@ use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\BonusPolicy;
 use ME\Hr\Models\BonusTitle;
 use ME\Hr\Models\Designation;
-use ME\Hr\Models\SalarySheet;
 use ME\Hr\Models\ProductionBonus;
 use ME\Hr\Models\Shift;
 use ME\Hr\Models\SubSection;
 use ME\Hr\Models\WorkingPlace;
 use App\Models\Attribute;
-use PHPUnit\Util\PHP\Job;
+
+
+
 
 class HrReportController extends Controller
 {
+
+    public function proJobCard(Request $request)
+    {
+        // dd('This report is under development. Please check back later.');
+        $reportKey = 'pro-job-card';
+        $reportTitle = 'Pro. Job Card';
+        $options = $this->employeeReportOptions();
+
+        $columns = $rows = [];
+        $showTable = false;
+        // Show table if any filter is applied or print requested
+        if ($request->hasAny([
+            'employee_ids', 'from', 'to', 'classification', 'department', 'section', 'sub_section',
+            'shift', 'working_place', 'line_number', 'salary_type', 'employee_status', 'language', 'report_type', 'print'])
+        ) {
+            [$columns, $rows] = $this->productionJobCardReport();
+            $showTable = true;
+        }
+
+        if ($request->boolean('print')) {
+            return view('hr::reports.pro-job-card-print', compact('reportKey', 'reportTitle', 'options', 'request', 'columns', 'rows'));
+        }
+
+        return view('hr::reports.pro-job-card', compact('reportKey', 'reportTitle', 'options', 'request', 'columns', 'rows', 'showTable'));
+    }
+
     public function lockMonthlyIncrement(Request $request)
     {
         $payload = $request->validate([
@@ -1343,6 +1370,7 @@ class HrReportController extends Controller
                 $reportType = 'job-card';
             }
 
+            // If no filter is selected, show all employees
             $employees = $this->employeeReportQuery($request)
                 ->orderBy('section_id')
                 ->orderBy('name')
