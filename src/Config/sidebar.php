@@ -251,7 +251,7 @@ return [
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/job-card-report',
                             'icon_color' => 'text-success',
-                            'permission' => 'dev',
+                            'permission' => 'hr',
                         ],
                         [
                             'title'      => 'Attendance Report',
@@ -271,7 +271,7 @@ return [
                             'title'      => 'Bonus Sheet',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'icon_color' => 'text-success',
-                            'permission' => 'dev',
+                            'permission' => 'hr',
                             'children'   => [
                                 [
                                     'title'      => 'Fixed',
@@ -293,7 +293,7 @@ return [
                             'title'      => 'Salary Report',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'icon_color' => 'text-success',
-                            'permission' => 'dev',
+                            'permission' => 'hr',
                             'children'   => [
                                 [
                                     'title'      => 'Fixed Salary',
@@ -330,7 +330,7 @@ return [
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/pro-job-card',
                             'icon_color' => 'text-success',
-                            'permission' => 'dev',
+                            'permission' => 'hr',
                         ],
                     ]
                 ],
@@ -340,7 +340,7 @@ return [
                     'title'      => 'Production Rate',
                     'icon'       => 'fa-solid fa-arrow-right',
                     'icon_color' => 'text-info',
-                    'permission' => 'dev',
+                    'permission' => 'hr',
                     'children'   => [
                         [
                             'title'      => 'Linking',
