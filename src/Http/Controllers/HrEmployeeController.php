@@ -274,6 +274,16 @@ class HrEmployeeController extends Controller
         ]);
         $employee->other_information = json_encode($other);
         $employee->setTypes('employee');
+        $employee->present_village_bn = $payload['present_village_bn'] ?? null;
+        $employee->present_post_office_bn = $payload['present_post_office_bn'] ?? null;
+        $employee->permanent_district_bn = \App\Models\Country::where('name', $request->permanent_district)->first()->bn_name;
+        $employee->permanent_upazila_bn = \App\Models\Country::where('name', $request->permanent_upazila)->first()->bn_name;
+
+        $employee->permanent_village_bn = $payload['permanent_village_bn'] ?? null;
+        $employee->permanent_post_office_bn = $payload['permanent_post_office_bn'] ?? null;
+        $employee->present_district_bn = \App\Models\Country::where('name', $request->present_district)->first()->bn_name;
+        $employee->present_upazila_bn = \App\Models\Country::where('name', $request->present_upazila)->first()->bn_name;
+
         $employee->save();
 
         return redirect()->route('hr-center.employees.index')->with('success', 'Address info updated.');
