@@ -11,7 +11,7 @@
         ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
         : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
     $issueDate = now()->format('d/m/Y');
-    $joinDate = $fmtDate($employee->joining_date);
+    $joinDate = $isBangla ? bn_date($employee->joining_date, 'd/m/Y') : $fmtDate($employee->joining_date);
 
     $designationAttr = optional(\ME\Hr\Models\Designation::find($employee->designation_id));
     $departmentAttr = optional(\App\Models\Attribute::where('type', 3)->find($employee->department_id));
@@ -77,7 +77,7 @@
         ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
         : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
     $bloodGroup = data_get($employee, 'blood_group', $na);
-    $emergency = data_get($employee, 'emergency_mobile', data_get($employee, 'emergency_contact_no', data_get($employee, 'mobile', $na)));
+    $emergency = $isBangla ? en2bnNumber(data_get($employee, 'emergency_mobile', data_get($employee, 'emergency_contact_no', data_get($employee, 'mobile', $na)))) : data_get($employee, 'emergency_contact_no', data_get($employee, 'emergency_mobile', data_get($employee, 'mobile', $na)));
     $idNumber = data_get($employee, 'employee_id', data_get($employee, 'id', $na));
     $permanentAddress = $isBangla
         ? (data_get($employee, 'permanent_address_bn') ?? data_get($employee, 'permanent_address') ?? data_get($employee, 'address', $na))
