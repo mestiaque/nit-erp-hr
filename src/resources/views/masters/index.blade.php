@@ -10,11 +10,14 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">{{ $entity['title'] }}</h4>
                 @if($useModalForm)
-                    <a href="javascript:void(0)" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#CreateMasterModal">
+                    <a href="javascript:void(0)" class="btn btn-primary btn-sm " data-toggle="modal" data-target="#CreateMasterModal">
                         Create
                     </a>
                 @else
-                    <a href="{{ route('hr-center.masters.create', $entityKey) }}" class="btn btn-primary btn-sm">Create</a>
+                    @php
+                        $hideCreate = in_array($entity['title'], ['Salary Key', 'Factory']);    
+                    @endphp
+                    <a href="{{ route('hr-center.masters.create', $entityKey) }}" class="btn btn-primary btn-sm @if($hideCreate) d-none @endif">Create</a>
                 @endif
             </div>
             <div class="card-body">
@@ -150,6 +153,57 @@
         </div>
         @endforeach
     @endif
+
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        (function () {
+            function initTiny(scope) {
+                if (typeof tinymce === 'undefined') return;
+
+                // Only select textareas with data-tinymce="1"
+                var selector = scope
+                    ? '#' + scope.id + ' textarea[data-tinymce="1"]'
+                    : 'textarea[data-tinymce="1"]';
+
+                tinymce.remove(selector);
+                tinymce.init({
+                    selector: selector,
+                    height: 180,
+                    menubar: false,
+                    branding: false,
+                    plugins: 'lists link code',
+                    toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+                    statusbar: true,
+                    resize: 'both'
+                });
+            }
+
+            function ready(fn) {
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', fn);
+                } else {
+                    fn();
+                }
+            }
+
+            ready(function () {
+                initTiny();
+
+                var createModal = document.getElementById('CreateMasterModal');
+                if (createModal) {
+                    createModal.addEventListener('shown.bs.modal', function () {
+                        initTiny(createModal);
+                    });
+                }
+
+                document.querySelectorAll('[id^="EditMasterModal_"]').forEach(function (modal) {
+                    modal.addEventListener('shown.bs.modal', function () {
+                        initTiny(modal);
+                    });
+                });
+            });
+        })();
+    </script>
 @endsection
 
 @push('css')

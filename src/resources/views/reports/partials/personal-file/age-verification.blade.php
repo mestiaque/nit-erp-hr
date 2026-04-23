@@ -1,32 +1,36 @@
 @php
+    $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
+    $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
     $language = $language ?? data_get($request ?? null, 'language', 'en');
     $isBangla = $language === 'bn';
     $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
     $na = $t('প্রযোজ্য নয়', 'N/A');
-
-    $companyName = $isBangla
-        ? (hr_factory('bn_name') ?? hr_factory('name') ?? general()->name ?? $na)
-        : (hr_factory('name') ?? general()->name ?? hr_factory('bn_name') ?? $na);
-    $companyAddress = $isBangla
-        ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
-        : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
-
-    $employeeName = $isBangla
-        ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
-        : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
-    $employeeId = data_get($employee, 'employee_id', $na);
-    $employeePhoto = method_exists($employee, 'image') ? $employee->image() : null;
-    $dob = data_get($employee, 'date_of_birth', data_get($employee, 'dob'));
-    $employeeAge = '';
-    $joinDate = $fmtDate($employee->joining_date);
-
-    if (filled($dob)) {
-        try {
-            $employeeAge = \Illuminate\Support\Carbon::parse($dob)->age;
-        } catch (\Throwable $e) {
-            $employeeAge = '';
-        }
-    }
+    $companyName = $employeeData['company_name'];
+    $companyAddress = $employeeData['company_address'];
+    $designation = $employeeData['designation'];
+    $employeeName = $employeeData['employee_name'];
+    $qualification = $employeeData['qualification'];
+    $nomineeName = $isBangla ? $employeeData['nominee_name_bn'] : $employeeData['nominee_name'];
+    $nomineeRelation = $isBangla ? $employeeData['nominee_relation_bn'] : $employeeData['nominee_relation'];
+    $nomineeAge = $isBangla ? en2bnNumber($employeeData['nominee_age']) : $employeeData['nominee_age'];
+    $nomineeVillage = $isBangla ? $employeeData['nominee_village_bn'] : $employeeData['nominee_village'];
+    $nomineePoStation = $isBangla ? $employeeData['nominee_po_station_bn'] : $employeeData['nominee_po_station'];
+    $nomineePostOffice = $isBangla ? $employeeData['nominee_post_office_bn'] : $employeeData['nominee_post_office'];
+    $nomineeDistrict = $isBangla ? $employeeData['nominee_district_bn'] : $employeeData['nominee_district'];
+    $nomineeNid = $isBangla ? en2bnNumber($employeeData['nominee_nid']) : $employeeData['nominee_nid'];
+    $nomineeMobile = $isBangla ? en2bnNumber($employeeData['nominee_mobile']) : $employeeData['nominee_mobile'];
+    $nationality = $isBangla ? 'বাংলাদেশী' : 'Bangladeshi';
+    $permanentAddress = $isBangla ? $employeeData['permanent_address_bn'] : $employeeData['permanent_address'];
+    $presentAddress = $isBangla ? $employeeData['present_address_bn'] : $employeeData['present_address'];
+    $birthDate = $isBangla ? bn_date($employeeData['birth_date']) : $employeeData['birth_date'];
+    $employeeAge = $isBangla ? en2bnNumber($employeeData['employee_age']) : $employeeData['employee_age'];
+    $employeePhoto = $employeeData['employee_photo'];
+    $nomineeImage = $employeeData['nominee_image'];
+    $fatherName = $employeeData['father_name'];
+    $motherName = $employeeData['mother_name'];
+    $joiningDate = $employeeData['joining_date'];
+    $employeeId = $employeeData['employee_id'];
+    $gender = $employeeData['gender'];
 @endphp
 
 <style>
@@ -58,25 +62,32 @@
     width: 100%;
 }
 .age-verification-main-table table td {
-    border: 1px solid #222 !important;
+    /* border-top: 1px solid #222 !important; */
     padding: 4px 6px;
 }
 .age-verification-footer-table {
     width: 100%;
     font-size: 15px;
     border: none;
-    margin-top: 18px;
+    margin-top: 40px;
+    margin-bottom: 0px;
 }
 .age-verification-footer-table td {
-    border: none;
+    border: none !important;
     padding-top: 30px;
+}
+.age-verification-footer-table td span{
+    border-top: 1px solid #222 !important;
+    width: 200px;
+    display: inline-block;
+    text-align: center;
 }
 </style>
 
 <div class="age-verification-header">
     <h3 style="margin:0;">{{ $companyName }}</h3>
     <div>{{ $companyAddress }}</div>
-    <div style="margin-top:8px;font-weight:700;">{{ $t('ফরম-১-৫', 'Form-1-5') }}</div>
+    <div style="margin-top:8px;font-weight:700;">{{ $t('ফরম', 'Form') }} - {{ $isBangla ? en2bnNumber($employee->id) : $employee->id }}</div>
     <div style="margin-bottom:8px; font-weight:700;">{{ $t('বয়স ও সম্মততার প্রত্যয়নপত্র', 'Age and Fitness Verification Certificate') }}</div>
 </div>
 
@@ -84,16 +95,16 @@
     <tr>
         <td style="width:50%; vertical-align:top;">
             <table style="width:100%; border:none; font-size:15px;">
-                <tr><td>{{ $t('১. আই.ডি নম্বর', '1. Employee ID') }}: {{ $employeeId }}</td></tr>
-                <tr><td>{{ $t('তারিখ', 'Date') }}: {{ $joinDate ?: $na }}</td></tr>
-                <tr><td>{{ $t('২. নাম', '2. Name') }}: {{ $employeeName }}</td></tr>
-                <tr><td>{{ $t('৩. পিতার নাম', '3. Father Name') }}: {{ data_get($employee, 'father_name', $na) }}</td></tr>
-                <tr><td>{{ $t('৪. মাতার নাম', '4. Mother Name') }}: {{ data_get($employee, 'mother_name', $na) }}</td></tr>
-                <tr><td>{{ $t('৫. লিঙ্গ', '5. Gender') }}: {{ data_get($employee, 'sex', data_get($employee, 'gender', $na)) }}</td></tr>
-                <tr><td>{{ $t('৬. স্থায়ী ঠিকানা', '6. Permanent Address') }}: {{ data_get($employee, 'permanent_address', data_get($employee, 'address', $na)) }}</td></tr>
-                <tr><td>{{ $t('৭. বর্তমান ঠিকানা', '7. Present Address') }}: {{ data_get($employee, 'present_address', data_get($employee, 'address', $na)) }}</td></tr>
-                <tr><td>{{ $t('৮. জন্ম তারিখ', '8. Date of Birth') }}: {{ $dob ?: $na }}</td></tr>
-                <tr><td>{{ $t('৯. নির্ধারিত বয়স', '9. Verified Age') }}: {{ $employeeAge ? $employeeAge . ' ' . $t('বছর', 'years') : $na }}</td></tr>
+                <tr><td>{{ $t('আই.ডি নম্বর', 'Employee ID') }}: {{ $employeeId }}</td></tr>
+                <tr><td>{{ $t('তারিখ', 'Date') }}: {{ $joiningDate }}</td></tr>
+                <tr><td>{{ $t('নাম', 'Name') }}: {{ $employeeName }}</td></tr>
+                <tr><td>{{ $t('পিতার নাম', 'Father Name') }}: {{ $fatherName }}</td></tr>
+                <tr><td>{{ $t('মাতার নাম', 'Mother Name') }}: {{ $motherName }}</td></tr>
+                <tr><td>{{ $t('লিঙ্গ', 'Gender') }}: {{ $gender }}</td></tr>
+                <tr><td>{{ $t('স্থায়ী ঠিকানা', 'Permanent Address') }}: {{ $permanentAddress }}</td></tr>
+                <tr><td>{{ $t('বর্তমান ঠিকানা', 'Present Address') }}: {{ $presentAddress }}</td></tr>
+                <tr><td>{{ $t('জন্ম তারিখ', 'Date of Birth') }}: {{ $birthDate }}</td></tr>
+                <tr><td>{{ $t('নির্ধারিত বয়স', 'Verified Age') }}: {{ $employeeAge ? $employeeAge . ' ' . $t('বছর', 'years') : $na }}</td></tr>
             </table>
         </td>
         <td style="width:50%; vertical-align:top;">
@@ -114,9 +125,9 @@
         <td colspan="2">
             <table class="age-verification-footer-table">
                 <tr>
-                    <td style="width:33%; text-align:left;">{{ $t('সংশ্লিষ্ট স্বাক্ষর', 'Employee Signature') }}</td>
-                    <td style="width:34%; text-align:center;">{{ $t('নির্বাচিত চিকিৎসকের স্বাক্ষর', 'Authorized Doctor Signature') }}</td>
-                    <td style="width:33%; text-align:right;">{{ $t('সংশ্লিষ্ট টিপসই', 'Thumb Impression') }}</td>
+                    <td style="width:33%; text-align:left;"><span>{{ $t('সংশ্লিষ্ট স্বাক্ষর', 'Employee Signature') }}</span></td>
+                    <td style="width:34%; text-align:center;"><span>{{ $t('নির্বাচিত চিকিৎসকের স্বাক্ষর', 'Authorized Doctor Signature') }}</span></td>
+                    <td style="width:33%; text-align:right;"><span>{{ $t('সংশ্লিষ্ট টিপসই', 'Thumb Impression') }}</span></td>
                 </tr>
             </table>
         </td>

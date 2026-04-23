@@ -29,5 +29,32 @@
             </form>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        (function () {
+            function initTiny() {
+                if (typeof tinymce === 'undefined') return;
+
+                tinymce.remove('textarea.js-master-textarea');
+                tinymce.init({
+                    selector: 'textarea.js-master-textarea',
+                    height: 180,
+                    menubar: false,
+                    branding: false,
+                    plugins: 'lists link code',
+                    toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+                    statusbar: true,
+                    resize: 'both'
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTiny);
+            } else {
+                initTiny();
+            }
+        })();
+    </script>
 </div>
 @endsection

@@ -4,7 +4,12 @@
         @php($type = $field['type'] ?? 'text')
 
         @if($type === 'textarea')
-            <textarea name="{{ $name }}" class="form-control form-control-sm" rows="3">{{ old($name, $item->{$name}) }}</textarea>
+            <textarea
+                name="{{ $name }}"
+                class="form-control form-control-sm @if(isset($field['tinymce']) && $field['tinymce']) js-master-textarea @endif "
+                rows="3"
+                @if(isset($field['tinymce']) && $field['tinymce']) data-tinymce="1" @endif
+            >{{ old($name, $item->{$name}) }}</textarea>
         @elseif($type === 'select')
             @php($selectOptions = $options[$name] ?? [])
             @php($isBinaryStatus = $name === 'status' && isset($selectOptions['active']) && isset($selectOptions['inactive']) && count($selectOptions) === 2)
@@ -61,7 +66,12 @@
     </div>
 @endforeach
 
-
+{{-- DEBUG: Show which fields are marked for TinyMCE --}}
+@if(isset($tinymceFields))
+    <div style="background: #ffeeba; color: #856404; padding: 5px; font-size: 12px;">
+        TinyMCE fields: {{ implode(', ', $tinymceFields) }}
+    </div>
+@endif
 
 
 

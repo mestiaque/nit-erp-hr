@@ -630,8 +630,10 @@ class HrEmployeeController extends Controller
                 return [
                     'source' => 'db',
                     'identifier' => (string) ($row->id ?? ''),
-                    'amount' => (float) (data_get($row, 'gross_increment_amount') ?? data_get($row, 'new_salary') ?? data_get($row, 'amount') ?? 0),
-                    'increment_date' => data_get($row, 'increment_date') ?? data_get($row, 'date'),
+                    'previous_salary' => (float) $row->previous_salary,
+                    'increment_amount' => (float) $row->increment_amount,
+                    'new_salary' => (float) $row->new_salary,
+                    'increment_date' => $row->increment_date,
                 ];
             })->values();
         } else {
@@ -645,7 +647,9 @@ class HrEmployeeController extends Controller
                     return [
                         'source' => 'other',
                         'identifier' => (string) $index,
-                        'amount' => (float) data_get($row, 'amount', 0),
+                        'previous_salary' => (float) data_get($row, 'previous_salary', 0),
+                        'increment_amount' => (float) data_get($row, 'increment_amount', 0),
+                        'new_salary' => (float) data_get($row, 'new_salary', 0),
                         'increment_date' => data_get($row, 'increment_date'),
                     ];
                 });
@@ -665,116 +669,107 @@ class HrEmployeeController extends Controller
     public function incrementsStore(Request $request, User $employee): RedirectResponse
     {
         $this->ensureEmployee($employee);
-
         $payload = $request->validate([
-            'amount' => 'required|numeric|min:0',
             'increment_date' => 'required|date',
+            'amount' => 'required|numeric',
         ]);
 
-        $table = (new EmployeeIncrement())->getTable();
-        if (!Schema::hasTable($table)) {
-            $other = $this->otherInfo($employee);
-            $incrementRows = collect(data_get($other, 'increments', []));
-            $incrementRows->push([
-                'amount' => (float) $payload['amount'],
-                'increment_date' => $payload['increment_date'],
-                'created_at' => now()->toDateTimeString(),
-                'source' => 'other_information',
-            ]);
-            $other['increments'] = $incrementRows->values()->all();
-            $employee->other_information = json_encode($other);
-            $employee->save();
+        $oldIncrement = EmployeeIncrement::where('user_id', $employee->id)->latest()->first();
 
-            return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('success', 'Increment added.');
-        }
+        $previous_salary =  $oldIncrement ? $oldIncrement->new_salary : $employee->gross_salary;
+        $increment_amount = $payload['amount'];
+        $new_salary = $previous_salary + $increment_amount;
+        $increment_percentage = $previous_salary > 0 ? ($increment_amount / $previous_salary) * 100 : null;
 
-        $row = new EmployeeIncrement();
-        if (Schema::hasColumn($table, 'user_id')) {
-            $row->user_id = $employee->id;
-        }
-        if (Schema::hasColumn($table, 'employee_id')) {
-            $row->employee_id = $employee->id;
-        }
-        if (Schema::hasColumn($table, 'gross_increment_amount')) {
-            $row->gross_increment_amount = $payload['amount'];
-        } elseif (Schema::hasColumn($table, 'new_salary')) {
-            $row->new_salary = $payload['amount'];
-        } elseif (Schema::hasColumn($table, 'amount')) {
-            $row->amount = $payload['amount'];
-        }
-        if (Schema::hasColumn($table, 'increment_date')) {
-            $row->increment_date = $payload['increment_date'];
-        } elseif (Schema::hasColumn($table, 'date')) {
-            $row->date = $payload['increment_date'];
-        }
-        $row->save();
+        $otherInfo = $this->otherInfo($employee); // existing decoded array
+        $prev_comp_1 = isset($otherInfo['salary_info']['gross_salary_comp_1']) ? (float)$otherInfo['salary_info']['gross_salary_comp_1'] : 0;
+        $prev_comp_2 = isset($otherInfo['salary_info']['gross_salary_comp_2']) ? (float)$otherInfo['salary_info']['gross_salary_comp_2'] : 0;
+        $new_comp_1 = $prev_comp_1 + $increment_amount;
+        $new_comp_2 = $prev_comp_2 + $increment_amount;
 
+        $increment = EmployeeIncrement::create([
+            'user_id' => $employee->id,
+            'increment_date' => $payload['increment_date'],
+            'previous_salary' => $previous_salary,
+            'increment_amount' => $increment_amount,
+            'increment_percentage' => $increment_percentage,
+            'new_salary' => $new_salary,
+            'previous_salary_comp_1' => $prev_comp_1,
+            'new_salary_comp_1' => $new_comp_1,
+            'previous_salary_comp_2' => $prev_comp_2,
+            'new_salary_comp_2' => $new_comp_2,
+        ]);
+        $employee->gross_salary = $new_salary;
+        if (isset($otherInfo['salary_info'])) {
+            $otherInfo['salary_info']['gross_salary_comp_1'] = $new_comp_1;
+            $otherInfo['salary_info']['gross_salary_comp_2'] = $new_comp_2;
+            $otherInfo['gross_salary_comp_1'] = $new_comp_1;
+            $otherInfo['gross_salary_comp_2'] = $new_comp_2;
+        }
+        $employee->other_information = json_encode($otherInfo);
+        $employee->save();
         return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('success', 'Increment added.');
     }
 
     public function incrementsUpdate(Request $request, User $employee): RedirectResponse
     {
         $this->ensureEmployee($employee);
-
+        
         $payload = $request->validate([
-            'amount' => 'required|numeric|min:0',
+            'identifier' => 'required|integer|exists:employee_increments,id',
             'increment_date' => 'required|date',
-            'source' => 'required|in:db,other',
-            'identifier' => 'required|string',
+            'amount' => 'required|numeric',
         ]);
 
-        $table = (new EmployeeIncrement())->getTable();
-        if ($payload['source'] === 'db' && Schema::hasTable($table)) {
-            $query = EmployeeIncrement::query()->where('id', $payload['identifier']);
-            if (Schema::hasColumn($table, 'user_id')) {
-                $query->where('user_id', $employee->id);
-            } elseif (Schema::hasColumn($table, 'employee_id')) {
-                $query->where('employee_id', $employee->id);
-            }
+        // ১. বিদ্যমান ইনক্রিমেন্ট রেকর্ডটি খুঁজে বের করা
+        $increment = EmployeeIncrement::findOrFail($payload['identifier']);
 
-            $row = $query->first();
-            if (!$row) {
-                return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('error', 'Increment row not found.');
-            }
+        // ২. স্যালারি রিভার্স করা (আগের ইনক্রিমেন্ট বাদ দিয়ে বেস স্যালারিতে ফিরে যাওয়া)
+        $old_increment_amount = $increment->increment_amount;
+        $base_salary = $employee->gross_salary - $old_increment_amount;
 
-            if (Schema::hasColumn($table, 'gross_increment_amount')) {
-                $row->gross_increment_amount = $payload['amount'];
-            } elseif (Schema::hasColumn($table, 'new_salary')) {
-                $row->new_salary = $payload['amount'];
-            } elseif (Schema::hasColumn($table, 'amount')) {
-                $row->amount = $payload['amount'];
-            }
-            if (Schema::hasColumn($table, 'increment_date')) {
-                $row->increment_date = $payload['increment_date'];
-            } elseif (Schema::hasColumn($table, 'date')) {
-                $row->date = $payload['increment_date'];
-            }
-            $row->save();
+        // ৩. নতুন ক্যালকুলেশন
+        $new_increment_amount = $payload['amount'];
+        $new_gross_salary = $base_salary + $new_increment_amount;
+        $new_percentage = $base_salary > 0 ? ($new_increment_amount / $base_salary) * 100 : 0;
 
-            return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('success', 'Increment updated.');
+        $otherInfo = $this->otherInfo($employee);
+        $prev_comp_1 = isset($otherInfo['salary_info']['gross_salary_comp_1']) ? (float)$otherInfo['salary_info']['gross_salary_comp_1'] : 0;
+        $prev_comp_2 = isset($otherInfo['salary_info']['gross_salary_comp_2']) ? (float)$otherInfo['salary_info']['gross_salary_comp_2'] : 0;
+        // Reverse old increment and add new
+        $new_comp_1 = $prev_comp_1 - $old_increment_amount + $new_increment_amount;
+        $new_comp_2 = $prev_comp_2 - $old_increment_amount + $new_increment_amount;
+
+        // ৪. ইনক্রিমেন্ট টেবিল আপডেট
+        $increment->update([
+            'increment_date' => $payload['increment_date'],
+            'increment_amount' => $new_increment_amount,
+            'increment_percentage' => $new_percentage,
+            'new_salary' => $new_gross_salary,
+            'previous_salary_comp_1' => $prev_comp_1,
+            'new_salary_comp_1' => $new_comp_1,
+            'previous_salary_comp_2' => $prev_comp_2,
+            'new_salary_comp_2' => $new_comp_2,
+        ]);
+
+        // ৫. Employee টেবিল আপডেট
+        $employee->gross_salary = $new_gross_salary;
+
+        // ৬. JSON (other_information) ডেটা আপডেট
+        if (isset($otherInfo['salary_info'])) {
+            $otherInfo['salary_info']['gross_salary_comp_1'] = $new_comp_1;
+            $otherInfo['salary_info']['gross_salary_comp_2'] = $new_comp_2;
+            $otherInfo['gross_salary_comp_1'] = $new_comp_1;
+            $otherInfo['gross_salary_comp_2'] = $new_comp_2;
         }
 
-        $identifier = (int) $payload['identifier'];
-        $other = $this->otherInfo($employee);
-        $incrementRows = collect(data_get($other, 'increments', []));
-
-        if (!isset($incrementRows[$identifier])) {
-            return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('error', 'Increment row not found.');
-        }
-
-        $row = $incrementRows[$identifier];
-        if (is_array($row)) {
-            $row['amount'] = (float) $payload['amount'];
-            $row['increment_date'] = $payload['increment_date'];
-            $incrementRows[$identifier] = $row;
-        }
-
-        $other['increments'] = $incrementRows->values()->all();
-        $employee->other_information = json_encode($other);
+        $employee->other_information = json_encode($otherInfo);
         $employee->save();
 
-        return redirect()->route('hr-center.employees.increments.page', $employee->id)->with('success', 'Increment updated.');
+        return redirect()->route('hr-center.employees.increments.page', $employee->id)
+                        ->with('success', 'Increment updated successfully.');
     }
+
 
     public function earningsDeductionsPage(User $employee)
     {
@@ -924,67 +919,44 @@ class HrEmployeeController extends Controller
     {
         $this->ensureEmployee($employee);
 
-        $rows = collect();
-        $table = (new Leave())->getTable();
-        if (Schema::hasTable($table)) {
-            $query = Leave::query();
-            if (Schema::hasColumn($table, 'user_id')) {
-                $query->where('user_id', $employee->id);
-            } elseif (Schema::hasColumn($table, 'employee_id')) {
-                $query->where('employee_id', $employee->id);
-            }
-            $rows = $query->latest()->limit(100)->get()->map(function ($row) {
-                $leaveFrom = data_get($row, 'leave_from') ?? data_get($row, 'from_date');
-                $leaveTo = data_get($row, 'leave_to') ?? data_get($row, 'to_date');
-
+        $rows = Leave::query()
+            ->where('employee_id', $employee->id)
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(function ($row) {
+                $leaveType = optional($row->leaveType);
+                $leaveFrom = data_get($row, 'start_date');
+                $leaveTo = data_get($row, 'end_date');
                 return [
                     'source' => 'db',
                     'identifier' => (string) ($row->id ?? ''),
-                    'application_date' => data_get($row, 'application_date') ?? data_get($row, 'date'),
-                    'application_no' => data_get($row, 'application_no') ?? data_get($row, 'application_number'),
-                    'leave_code' => data_get($row, 'leave_code') ?? data_get($row, 'code'),
-                    'leave_type' => data_get($row, 'leave_type') ?? data_get($row, 'type') ?? data_get($row, 'name'),
+                    'application_date' => data_get($row, 'application_date'),
+                    'application_no' => data_get($row, 'application_no'),
+                    'leave_code' => $leaveType->code ?? null,
+                    'leave_type' => $leaveType->name ?? null,
+                    'leave_type_id' => $row->leave_type_id,
                     'leave_from' => $leaveFrom,
                     'leave_to' => $leaveTo,
-                    'purpose' => data_get($row, 'purpose'),
-                    'remarks' => data_get($row, 'remarks') ?? data_get($row, 'remark'),
+                    'purpose' => data_get($row, 'reason'),
+                    'remarks' => data_get($row, 'remarks'),
+                    'status' => data_get($row, 'status'),
                     'total_days' => data_get($row, 'total_days') ?? $this->calculateTotalDays($leaveFrom, $leaveTo),
                 ];
-            })->values();
-        } else {
-            $other = $this->otherInfo($employee);
-            $rows = collect(data_get($other, 'leaves', []))
-                ->sortByDesc(fn ($row) => data_get($row, 'application_date') ?: data_get($row, 'created_at'))
-                ->values()
-                ->map(function ($row, $index) {
-                    return [
-                        'source' => 'other',
-                        'identifier' => (string) $index,
-                        'application_date' => data_get($row, 'application_date'),
-                        'application_no' => data_get($row, 'application_no'),
-                        'leave_code' => data_get($row, 'leave_code'),
-                        'leave_type' => data_get($row, 'leave_type'),
-                        'leave_from' => data_get($row, 'leave_from'),
-                        'leave_to' => data_get($row, 'leave_to'),
-                        'purpose' => data_get($row, 'purpose'),
-                        'remarks' => data_get($row, 'remarks'),
-                        'total_days' => data_get($row, 'total_days') ?? $this->calculateTotalDays(data_get($row, 'leave_from'), data_get($row, 'leave_to')),
-                    ];
-                });
-        }
+            });
 
         $leaveTypes = Schema::hasTable((new LeaveInfo())->getTable())
             ? LeaveInfo::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'code', 'days'])
             : collect();
 
-        $takenByCode = $rows
-            ->groupBy(fn ($row) => strtoupper(trim((string) data_get($row, 'leave_code'))))
+        $takenByTypeId = $rows
+            ->groupBy(fn ($row) => (int) $row['leave_type_id'])
             ->map(fn ($group) => (int) round($group->sum(fn ($row) => (float) data_get($row, 'total_days', 0))));
 
-        $leaveSummary = $leaveTypes->map(function ($leaveType) use ($takenByCode) {
-            $code = strtoupper(trim((string) $leaveType->code));
+        $leaveSummary = $leaveTypes->map(function ($leaveType) use ($takenByTypeId) {
+            $typeId = (int) $leaveType->id;
             $totalDays = (int) ($leaveType->days ?? 0);
-            $takenDays = (int) ($takenByCode->get($code, 0));
+            $takenDays = (int) ($takenByTypeId->get($typeId, 0));
 
             return [
                 'code' => $leaveType->code,
@@ -1009,66 +981,31 @@ class HrEmployeeController extends Controller
     public function leavesStore(Request $request, User $employee): RedirectResponse
     {
         $this->ensureEmployee($employee);
-
         $payload = $request->validate([
+            'leave_type_id' => 'required|exists:hr_leave_infos,id',
             'application_date' => 'required|date',
             'application_no' => 'nullable|string|max:100',
-            'leave_code' => 'required|string|max:50',
-            'leave_from' => 'required|date',
-            'leave_to' => 'required|date|after_or_equal:leave_from',
-            'purpose' => 'nullable|string|max:191',
-            'remarks' => 'nullable|string|max:500',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'reason' => 'nullable|string',
+            'remarks' => 'nullable|string',
+            'status' => 'nullable|string|max:20',
         ]);
 
-        $leaveType = $this->resolveLeaveType($payload['leave_code']);
-        $leaveRow = [
+        $total_days = $this->calculateTotalDays($payload['start_date'], $payload['end_date']);
+
+        Leave::create([
+            'employee_id' => $employee->id,
+            'leave_type_id' => $payload['leave_type_id'],
             'application_date' => $payload['application_date'],
             'application_no' => $payload['application_no'] ?? null,
-            'leave_code' => $payload['leave_code'],
-            'leave_type' => data_get($leaveType, 'name', $payload['leave_code']),
-            'leave_from' => $payload['leave_from'],
-            'leave_to' => $payload['leave_to'],
-            'purpose' => $payload['purpose'] ?? null,
+            'start_date' => $payload['start_date'],
+            'end_date' => $payload['end_date'],
+            'total_days' => $total_days,
+            'reason' => $payload['reason'] ?? null,
             'remarks' => $payload['remarks'] ?? null,
-            'total_days' => $this->calculateTotalDays($payload['leave_from'], $payload['leave_to']),
-            'created_at' => now()->toDateTimeString(),
-        ];
-
-        $table = (new Leave())->getTable();
-        if (!Schema::hasTable($table)) {
-            $other = $this->otherInfo($employee);
-            $rows = collect(data_get($other, 'leaves', []));
-            $rows->push($leaveRow);
-            $other['leaves'] = $rows->values()->all();
-            $employee->other_information = json_encode($other);
-            $employee->save();
-
-            return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave added.');
-        }
-
-        $row = new Leave();
-        if (Schema::hasColumn($table, 'user_id')) {
-            $row->user_id = $employee->id;
-        } elseif (Schema::hasColumn($table, 'employee_id')) {
-            $row->employee_id = $employee->id;
-        }
-        foreach ([
-            'application_date' => 'application_date',
-            'application_no' => 'application_no',
-            'leave_code' => 'leave_code',
-            'leave_type' => 'leave_type',
-            'leave_from' => 'leave_from',
-            'leave_to' => 'leave_to',
-            'purpose' => 'purpose',
-            'remarks' => 'remarks',
-            'total_days' => 'total_days',
-        ] as $column => $key) {
-            if (Schema::hasColumn($table, $column)) {
-                $row->{$column} = $leaveRow[$key] ?? null;
-            }
-        }
-        $row->save();
-
+            'status' => $payload['status'] ?? 'pending',
+        ]);
         return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave added.');
     }
 
@@ -1077,64 +1014,31 @@ class HrEmployeeController extends Controller
         $this->ensureEmployee($employee);
 
         $payload = $request->validate([
-            'source' => 'required|in:db,other',
             'identifier' => 'required|string',
+            'leave_type_id' => 'required|exists:hr_leave_infos,id',
             'application_date' => 'required|date',
             'application_no' => 'nullable|string|max:100',
-            'leave_code' => 'required|string|max:50',
-            'leave_from' => 'required|date',
-            'leave_to' => 'required|date|after_or_equal:leave_from',
-            'purpose' => 'nullable|string|max:191',
-            'remarks' => 'nullable|string|max:500',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'reason' => 'nullable|string',
+            'remarks' => 'nullable|string',
+            'status' => 'nullable|string|max:20',
         ]);
 
-        $leaveType = $this->resolveLeaveType($payload['leave_code']);
-        $leaveRow = [
-            'application_date' => $payload['application_date'],
-            'application_no' => $payload['application_no'] ?? null,
-            'leave_code' => $payload['leave_code'],
-            'leave_type' => data_get($leaveType, 'name', $payload['leave_code']),
-            'leave_from' => $payload['leave_from'],
-            'leave_to' => $payload['leave_to'],
-            'purpose' => $payload['purpose'] ?? null,
-            'remarks' => $payload['remarks'] ?? null,
-            'total_days' => $this->calculateTotalDays($payload['leave_from'], $payload['leave_to']),
-        ];
-
-        $table = (new Leave())->getTable();
-        if ($payload['source'] === 'db' && Schema::hasTable($table)) {
-            $query = Leave::query()->where('id', $payload['identifier']);
-            if (Schema::hasColumn($table, 'user_id')) {
-                $query->where('user_id', $employee->id);
-            } elseif (Schema::hasColumn($table, 'employee_id')) {
-                $query->where('employee_id', $employee->id);
-            }
-            $row = $query->first();
-            if (!$row) {
-                return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('error', 'Leave row not found.');
-            }
-            foreach ($leaveRow as $column => $value) {
-                if (Schema::hasColumn($table, $column)) {
-                    $row->{$column} = $value;
-                }
-            }
-            $row->save();
-
-            return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave updated.');
-        }
-
-        $identifier = (int) $payload['identifier'];
-        $other = $this->otherInfo($employee);
-        $rows = collect(data_get($other, 'leaves', []));
-        if (!isset($rows[$identifier])) {
+        $row = Leave::where('id', $payload['identifier'])->where('employee_id', $employee->id)->first();
+        if (!$row) {
             return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('error', 'Leave row not found.');
         }
-        $existing = (array) $rows[$identifier];
-        $rows[$identifier] = array_merge($existing, $leaveRow);
-        $other['leaves'] = $rows->values()->all();
-        $employee->other_information = json_encode($other);
-        $employee->save();
-
+        $row->leave_type_id = $payload['leave_type_id'];
+        $row->application_date = $payload['application_date'];
+        $row->application_no = $payload['application_no'] ?? null;
+        $row->start_date = $payload['start_date'];
+        $row->end_date = $payload['end_date'];
+        $row->total_days = $this->calculateTotalDays($payload['start_date'], $payload['end_date']);
+        $row->reason = $payload['reason'] ?? null;
+        $row->remarks = $payload['remarks'] ?? null;
+        $row->status = $payload['status'] ?? 'pending';
+        $row->save();
         return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave updated.');
     }
 
@@ -1147,34 +1051,11 @@ class HrEmployeeController extends Controller
             'identifier' => 'required|string',
         ]);
 
-        $table = (new Leave())->getTable();
-        if ($payload['source'] === 'db' && Schema::hasTable($table)) {
-            $query = Leave::query()->where('id', $payload['identifier']);
-            if (Schema::hasColumn($table, 'user_id')) {
-                $query->where('user_id', $employee->id);
-            } elseif (Schema::hasColumn($table, 'employee_id')) {
-                $query->where('employee_id', $employee->id);
-            }
-            $row = $query->first();
-            if (!$row) {
-                return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('error', 'Leave row not found.');
-            }
-            $row->delete();
-
-            return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave deleted.');
-        }
-
-        $identifier = (int) $payload['identifier'];
-        $other = $this->otherInfo($employee);
-        $rows = collect(data_get($other, 'leaves', []));
-        if (!isset($rows[$identifier])) {
+        $row = Leave::where('id', $payload['identifier'])->where('employee_id', $employee->id)->first();
+        if (!$row) {
             return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('error', 'Leave row not found.');
         }
-        $rows->forget($identifier);
-        $other['leaves'] = $rows->values()->all();
-        $employee->other_information = json_encode($other);
-        $employee->save();
-
+        $row->delete();
         return redirect()->route('hr-center.employees.leaves.page', $employee->id)->with('success', 'Leave deleted.');
     }
 
@@ -1273,6 +1154,7 @@ class HrEmployeeController extends Controller
 
     private function ensureEmployee(User $employee): void
     {
+        // dd($employee, User::query()->filterByType('employee')->whereKey($employee->id)->exists());
         abort_unless(
             User::query()->filterByType('employee')->whereKey($employee->id)->exists(),
             404

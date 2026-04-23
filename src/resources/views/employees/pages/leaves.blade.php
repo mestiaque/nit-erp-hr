@@ -5,6 +5,7 @@
 @endsection
 
 @section('contents')
+
 <div class="flex-grow-1 p-4">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -126,16 +127,16 @@
                         <div class="col-md-6 mb-2"><label class="mb-1">Application No.</label><input type="text" name="application_no" value="{{ old('application_no') }}" class="form-control form-control-sm"></div>
                         <div class="col-md-6 mb-2">
                             <label class="mb-1">Leave Type</label>
-                            <select name="leave_code" class="form-control form-control-sm" required>
+                            <select name="leave_type_id" class="form-control form-control-sm" required>
                                 <option value="">Select</option>
                                 @foreach($leaveTypes as $leaveType)
-                                    <option value="{{ $leaveType->code }}" @selected(old('leave_code') === $leaveType->code)>{{ $leaveType->code }} - {{ $leaveType->name }}</option>
+                                    <option value="{{ $leaveType->id }}" @selected(old('leave_type_id') == $leaveType->id)>{{ $leaveType->code }} - {{ $leaveType->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Leave From</label><input type="date" name="leave_from" value="{{ old('leave_from') }}" class="form-control form-control-sm" required></div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Leave To</label><input type="date" name="leave_to" value="{{ old('leave_to') }}" class="form-control form-control-sm" required></div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Purpose</label><input type="text" name="purpose" value="{{ old('purpose') }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Leave From</label><input type="date" name="start_date" value="{{ old('start_date') }}" class="form-control form-control-sm" required></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Leave To</label><input type="date" name="end_date" value="{{ old('end_date') }}" class="form-control form-control-sm" required></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Reason</label><input type="text" name="reason" value="{{ old('reason') }}" class="form-control form-control-sm"></div>
                         <div class="col-md-12 mb-2"><label class="mb-1">Remarks</label><textarea name="remarks" class="form-control form-control-sm" rows="3">{{ old('remarks') }}</textarea></div>
                     </div>
                 </div>
@@ -167,16 +168,16 @@
                         <div class="col-md-6 mb-2"><label class="mb-1">Application No.</label><input type="text" name="application_no" value="{{ data_get($row, 'application_no') }}" class="form-control form-control-sm"></div>
                         <div class="col-md-6 mb-2">
                             <label class="mb-1">Leave Type</label>
-                            <select name="leave_code" class="form-control form-control-sm" required>
+                            <select name="leave_type_id" class="form-control form-control-sm" required>
                                 <option value="">Select</option>
                                 @foreach($leaveTypes as $leaveType)
-                                    <option value="{{ $leaveType->code }}" @selected(data_get($row, 'leave_code') === $leaveType->code)>{{ $leaveType->code }} - {{ $leaveType->name }}</option>
+                                    <option value="{{ $leaveType->id }}" @selected(data_get($row, 'leave_type_id') == $leaveType->id)>{{ $leaveType->code }} - {{ $leaveType->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Leave From</label><input type="date" name="leave_from" value="{{ data_get($row, 'leave_from') }}" class="form-control form-control-sm" required></div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Leave To</label><input type="date" name="leave_to" value="{{ data_get($row, 'leave_to') }}" class="form-control form-control-sm" required></div>
-                        <div class="col-md-6 mb-2"><label class="mb-1">Purpose</label><input type="text" name="purpose" value="{{ data_get($row, 'purpose') }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Leave From</label><input type="date" name="start_date" value="{{ data_get($row, 'leave_from') }}" class="form-control form-control-sm" required></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Leave To</label><input type="date" name="end_date" value="{{ data_get($row, 'leave_to') }}" class="form-control form-control-sm" required></div>
+                        <div class="col-md-6 mb-2"><label class="mb-1">Reason</label><input type="text" name="reason" value="{{ data_get($row, 'purpose') }}" class="form-control form-control-sm"></div>
                         <div class="col-md-12 mb-2"><label class="mb-1">Remarks</label><textarea name="remarks" class="form-control form-control-sm" rows="3">{{ data_get($row, 'remarks') }}</textarea></div>
                     </div>
                 </div>

@@ -141,11 +141,11 @@
                     <div class="col-md-3 mb-3" id="lockSwitchWrap" style="display:none;">
                         <label class="mb-1">Lock Apply</label>
                         <div class="d-flex align-items-center mt-1">
-                            <div class="form-check form-switch me-3 mb-0">
-                                <input class="form-check-input" type="checkbox" id="lockSwitch" name="apply_lock" value="1"
-                                    @checked($request->boolean('apply_lock'))>
-                                <label class="form-check-label" for="lockSwitch">Enable Lock</label>
-                            </div>
+                            <label class="custom-switch pl-0">
+                                <input type="checkbox" id="lockSwitch" name="apply_lock" value="1" @checked($request->boolean('apply_lock'))>
+                                <span class="custom-slider"></span>
+                                <span class="ml-2">Enable Lock</span>
+                            </label>
                         </div>
                     </div>
 
@@ -217,4 +217,47 @@
     }
 })();
 </script>
+@endpush
+
+@push('css')
+<style>
+.custom-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+.custom-switch input[type="checkbox"] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.custom-slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 34px;
+    transition: background 0.3s;
+    display: inline-block;
+}
+.custom-slider:before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+.custom-switch input:checked + .custom-slider {
+    background: #0d6efd;
+}
+.custom-switch input:checked + .custom-slider:before {
+    transform: translateX(18px);
+}
+</style>
 @endpush

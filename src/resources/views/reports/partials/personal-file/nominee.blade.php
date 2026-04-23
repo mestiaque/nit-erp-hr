@@ -1,66 +1,35 @@
 @if(!empty($nominee) || filled($employee->nominee) || filled($employee->nominee_relation) || filled($employee->nominee_age))
 @php
-  $language = $language ?? data_get($request ?? null, 'language', 'en');
-  $isBangla = $language === 'bn';
-  $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
-  $na = $t('প্রযোজ্য নয়', 'N/A');
-
-  $companyName = $isBangla
-      ? (hr_factory('bn_name') ?? hr_factory('name') ?? general()->name ?? $na)
-      : (hr_factory('name') ?? general()->name ?? hr_factory('bn_name') ?? $na);
-  $companyAddress = $isBangla
-      ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
-      : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
-
-  $designationModel = optional($employee->designation);
-  $designation = $isBangla
-      ? ($designationModel->bn_name ?? $designationModel->name ?? data_get($employee, 'designation_bn_name') ?? data_get($employee, 'designation_name') ?? $na)
-      : ($designationModel->name ?? data_get($employee, 'designation_name') ?? $designationModel->bn_name ?? data_get($employee, 'designation_bn_name') ?? $na);
-
-  $employeeName = $isBangla
-      ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
-      : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
-
-  $qualification = data_get($employee, 'qualification', data_get($profile, 'qualification', $na));
-  $nomineeName = data_get($employee, 'nominee', data_get($nominee, 'nominee', $na));
-  $nomineeRelation = data_get($employee, 'nominee_relation', data_get($nominee, 'nominee_relation', $na));
-  $nomineeAge = data_get($employee, 'nominee_age', data_get($nominee, 'nominee_age', ''));
-  $nomineeVillage = data_get($nominee, 'nominee_village', $na);
-  $nomineePoStation = data_get($nominee, 'nominee_po_station', $na);
-  $nomineePostOffice = data_get($nominee, 'nominee_post_office', $na);
-  $nomineeDistrict = data_get($nominee, 'nominee_district', $na);
-  $nomineeNid = data_get($nominee, 'nominee_nid', $na);
-  $nomineeMobile = data_get($nominee, 'nominee_mobile', $na);
-  $nationality = data_get($nominee, 'nominee_nationality', data_get($employee, 'nationality', $t('বাংলাদেশী', 'Bangladeshi')));
-
-  $permanentAddress = collect([
-    data_get($employee, 'permanent_village'),
-    data_get($employee, 'permanent_post_office'),
-    data_get($employee, 'permanent_upazila'),
-    data_get($employee, 'permanent_district'),
-  ])->filter(fn ($value) => filled($value))->implode(', ');
-
-  $presentAddress = collect([
-    data_get($employee, 'present_village'),
-    data_get($employee, 'present_post_office'),
-    data_get($employee, 'present_upazila'),
-    data_get($employee, 'present_district'),
-  ])->filter(fn ($value) => filled($value))->implode(', ');
-
-  $permanentAddress = $permanentAddress ?: data_get($employee, 'permanent_address', data_get($employee, 'address', $na));
-  $presentAddress = $presentAddress ?: data_get($employee, 'present_address', data_get($employee, 'address', $na));
-
-  $birthDate = data_get($employee, 'date_of_birth', data_get($employee, 'dob'));
-  $employeeAge = '';
-  if (filled($birthDate)) {
-    try {
-      $employeeAge = \Illuminate\Support\Carbon::parse($birthDate)->age;
-    } catch (\Throwable $e) {
-      $employeeAge = '';
-    }
-  }
-
-  $employeePhoto = method_exists($employee, 'image') ? $employee->image() : null;
+    $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
+    $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
+    $language = $language ?? data_get($request ?? null, 'language', 'en');
+    $isBangla = $language === 'bn';
+    $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
+    $na = $t('প্রযোজ্য নয়', 'N/A');
+    $companyName = $employeeData['company_name'];
+    $companyAddress = $employeeData['company_address'];
+    $designation = $employeeData['designation'];
+    $employeeName = $employeeData['employee_name'];
+    $qualification = $employeeData['qualification'];
+    $nomineeName = $isBangla ? $employeeData['nominee_name_bn'] : $employeeData['nominee_name'];
+    $nomineeRelation = $isBangla ? $employeeData['nominee_relation_bn'] : $employeeData['nominee_relation'];
+    $nomineeAge = $isBangla ? en2bnNumber($employeeData['nominee_age']) : $employeeData['nominee_age'];
+    $nomineeVillage = $isBangla ? $employeeData['nominee_village_bn'] : $employeeData['nominee_village'];
+    $nomineePoStation = $isBangla ? $employeeData['nominee_po_station_bn'] : $employeeData['nominee_po_station'];
+    $nomineePostOffice = $isBangla ? $employeeData['nominee_post_office_bn'] : $employeeData['nominee_post_office'];
+    $nomineeDistrict = $isBangla ? $employeeData['nominee_district_bn'] : $employeeData['nominee_district'];
+    $nomineeNid = $isBangla ? en2bnNumber($employeeData['nominee_nid']) : $employeeData['nominee_nid'];
+    $nomineeMobile = $isBangla ? en2bnNumber($employeeData['nominee_mobile']) : $employeeData['nominee_mobile'];
+    $nationality = $isBangla ? 'বাংলাদেশী' : 'Bangladeshi';
+    $permanentAddress = $isBangla ? $employeeData['permanent_address_bn'] : $employeeData['permanent_address'];
+    $presentAddress = $isBangla ? $employeeData['present_address_bn'] : $employeeData['present_address'];
+    $birthDate = $isBangla ? bn_date($employeeData['birth_date']) : $employeeData['birth_date'];
+    $employeeAge = $isBangla ? en2bnNumber($employeeData['employee_age']) : $employeeData['employee_age'];
+    $employeePhoto = $employeeData['employee_photo'];
+    $nomineeImage = $employeeData['nominee_image'];
+    $fatherName = $employeeData['father_name'];
+    $motherName = $employeeData['mother_name'];
+    $joiningDate = $employeeData['joining_date'];
 @endphp
 
 <style>
@@ -141,7 +110,7 @@
     font-size: 13px;
     border: none !important;
   }
-  .details-table .sl { width: 22px; }
+  /* .details-table .sl { width: 22px; } */
   .details-table .label { width: 150px; white-space: nowrap; }
   .details-table .colon { width: 10px; text-align: center; }
   .declaration {
@@ -193,28 +162,68 @@
   <div class="nominee-head">
     <div class="nominee-company">{{ $companyName }}</div>
     <div class="nominee-address">{{ $companyAddress }}</div>
-    <div class="nominee-form-no">{{ $t('ফরম', 'Form') }}-{{ $employee->id ?? '' }}</div>
+    <div class="nominee-form-no">{{ $t('ফরম', 'Form') }}-{{ $isBangla ? en2bnNumber($employee->id) : $employee->id }}</div>
     <div class="nominee-title">{{ $t('মনোনয়ন ফরম', 'Nominee Declaration Form') }}</div>
   </div>
 
   <div class="nominee-top">
     <div class="nominee-top-main">
       <table class="details-table">
-        <tr><td class="sl">1.</td><td class="label">{{ $t('প্রতিষ্ঠানের নাম', 'Company Name') }}</td><td class="colon">:</td><td colspan="4">{{ $companyName }}</td></tr>
-        <tr><td class="sl">2.</td><td class="label">{{ $t('প্রতিষ্ঠানের ঠিকানা', 'Company Address') }}</td><td class="colon">:</td><td colspan="4">{{ $companyAddress }}</td></tr>
-        <tr><td class="sl">3.</td><td class="label">{{ $t('কর্মচারীর নাম', 'Employee Name') }}</td><td class="colon">:</td><td>{{ $employeeName }}</td><td class="label">{{ $t('আইডি', 'ID') }}</td><td class="colon">:</td><td>{{ data_get($employee, 'employee_id', $na) }}</td></tr>
-        <tr><td class="sl">4.</td><td class="label">{{ $t('পিতার নাম', 'Father Name') }}</td><td class="colon">:</td><td>{{ data_get($employee, 'father_name', $na) }}</td><td class="label">{{ $t('শিক্ষাগত যোগ্যতা', 'Qualification') }}</td><td class="colon">:</td><td>{{ $qualification }}</td></tr>
-        <tr><td class="sl">5.</td><td class="label">{{ $t('মাতার নাম', 'Mother Name') }}</td><td class="colon">:</td><td>{{ data_get($employee, 'mother_name', $na) }}</td><td class="label">{{ $t('পদের নাম', 'Designation') }}</td><td class="colon">:</td><td>{{ $designation }}</td></tr>
-        <tr><td class="sl">6.</td><td class="label">{{ $t('স্থায়ী ঠিকানা', 'Permanent Address') }}</td><td class="colon">:</td><td>{{ $permanentAddress }}</td><td class="label">{{ $t('জাতীয়তা', 'Nationality') }}</td><td class="colon">:</td><td>{{ $nationality }}</td></tr>
-        <tr><td class="sl">7.</td><td class="label">{{ $t('বর্তমান ঠিকানা', 'Present Address') }}</td><td class="colon">:</td><td>{{ $presentAddress }}</td><td class="label">{{ $t('জন্ম তারিখ', 'Date of Birth') }}</td><td class="colon">:</td><td>{{ $fmtDate($birthDate) }}</td></tr>
-        <tr><td class="sl">8.</td><td class="label">{{ $t('যোগদানের তারিখ', 'Joining Date') }}</td><td class="colon">:</td><td>{{ $fmtDate($employee->joining_date) }}</td><td class="label">{{ $t('বয়স', 'Age') }}</td><td class="colon">:</td><td>{{ $employeeAge ?: $na }}</td></tr>
+        <tr>
+          <td class="sl"></td><td class="label">{{ $t('প্রতিষ্ঠানের নাম', 'Company Name') }}</td>
+          <td class="colon">:</td><td colspan="4">{{ $companyName }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td><td class="label">{{ $t('প্রতিষ্ঠানের ঠিকানা', 'Company Address') }}</td>
+          <td class="colon">:</td><td colspan="4">{{ $companyAddress }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td><td class="label">{{ $t('কর্মচারীর নাম', 'Employee Name') }}</td>
+          <td class="colon">:</td><td>{{ $employeeName }}</td>
+          <td class="label">{{ $t('আইডি', 'ID') }}</td>
+          <td class="colon">:</td><td>{{ data_get($employee, 'employee_id', $na) }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td><td class="label">{{ $t('পিতার নাম', 'Father Name') }}</td>
+          <td class="colon">:</td><td>{{ $fatherName }}</td>
+          <td class="label">{{ $t('শিক্ষাগত যোগ্যতা', 'Qualification') }}</td><td class="colon">:</td>
+          <td>{{ $qualification }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td>
+          <td class="label">{{ $t('মাতার নাম', 'Mother Name') }}</td>
+          <td class="colon">:</td><td>{{ $motherName }}</td>
+          <td class="label">{{ $t('পদের নাম', 'Designation') }}</td>
+          <td class="colon">:</td><td>{{ $designation }}</td>
+        </tr>
+        <tr>
+            <td class="sl"></td>
+            <td class="label">{{ $t('স্থায়ী ঠিকানা', 'Permanent Address') }}</td>
+            <td class="colon">:</td><td>{{ $permanentAddress }}</td>
+            <td class="label">{{ $t('জাতীয়তা', 'Nationality') }}</td>
+            <td class="colon">:</td><td>{{ $nationality }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td>
+          <td class="label">{{ $t('বর্তমান ঠিকানা', 'Present Address') }}</td>
+          <td class="colon">:</td><td>{{ $presentAddress }}</td>
+          <td class="label">{{ $t('জন্ম তারিখ', 'Date of Birth') }}</td>
+          <td class="colon">:</td><td>{{ $fmtDate($birthDate) }}</td>
+        </tr>
+        <tr>
+          <td class="sl"></td>
+          <td class="label">{{ $t('যোগদানের তারিখ', 'Joining Date') }}</td>
+          <td class="colon">:</td><td>{{ $joiningDate }}</td>
+          <td class="label">{{ $t('বয়স', 'Age') }}</td>
+          <td class="colon">:</td><td>{{ $employeeAge ?: $na }}</td>
+        </tr>
       </table>
     </div>
 
     <div class="nominee-top-photo">
       <div class="photo-box">
-        @if(filled($employeePhoto))
-          <img src="{{ asset($employeePhoto) }}" alt="{{ $t('কর্মচারীর ছবি', 'Employee Photo') }}">
+        @if(filled($nomineeImage))
+          <img src="{{ asset($nomineeImage) }}" alt="{{ $t('মনোনীত ব্যক্তির ছবি', 'Nominee Image') }}">
         @endif
       </div>
     </div>
@@ -236,7 +245,7 @@
         {{ $t('নাম', 'Name') }}: {{ $nomineeName }}<br>
         {{ $t('গ্রাম', 'Village') }}: {{ $nomineeVillage }}<br>
         {{ $t('ডাকঘর', 'Post Office') }}: {{ $nomineePostOffice }}<br>
-        {{ $t('থানা/পোস্ট স্টেশন', 'Police/PO Station') }}: {{ $nomineePoStation }}<br>
+        {{ $t('থানা', 'Police/PO Station') }}: {{ $nomineePoStation }}<br>
         {{ $t('জেলা', 'District') }}: {{ $nomineeDistrict }}<br>
         {{ $t('এনআইডি', 'NID') }}: {{ $nomineeNid }}<br>
         {{ $t('মোবাইল', 'Mobile') }}: {{ $nomineeMobile }}
@@ -246,12 +255,12 @@
       <td class="share-col">
         <table class="dist-table">
           <tr><th>{{ $t('খাত', 'Category') }}</th><th class="percent">{{ $t('অংশ', 'Share') }}</th></tr>
-          <tr><td>{{ $t('অনাদায় মজুরি', 'Due Wages') }}</td><td class="percent">{{ data_get($nominee, 'distribution_net_payment', '0') }}%</td></tr>
-          <tr><td>{{ $t('প্রভিডেন্ট ফান্ড', 'Provident Fund') }}</td><td class="percent">{{ data_get($nominee, 'distribution_provident_fund', '0') }}%</td></tr>
-          <tr><td>{{ $t('বীমা', 'Insurance') }}</td><td class="percent">{{ data_get($nominee, 'distribution_insurance', '0') }}%</td></tr>
-          <tr><td>{{ $t('দুর্ঘটনা ক্ষতিপূরণ', 'Accident Compensation') }}</td><td class="percent">{{ data_get($nominee, 'distribution_accident_fine', '0') }}%</td></tr>
-          <tr><td>{{ $t('লভ্যাংশ', 'Profit Share') }}</td><td class="percent">{{ data_get($nominee, 'distribution_profit', '0') }}%</td></tr>
-          <tr><td>{{ $t('অন্যান্য', 'Others') }}</td><td class="percent">{{ data_get($nominee, 'distribution_others', '0') }}%</td></tr>
+          <tr><td>{{ $t('অনাদায় মজুরি', 'Due Wages') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_net_payment', '0')) : data_get($nominee, 'distribution_net_payment', '0') }}%</td></tr>
+          <tr><td>{{ $t('প্রভিডেন্ট ফান্ড', 'Provident Fund') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_provident_fund', '0')) : data_get($nominee, 'distribution_provident_fund', '0') }}%</td></tr>
+          <tr><td>{{ $t('বীমা', 'Insurance') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_insurance', '0')) : data_get($nominee, 'distribution_insurance', '0') }}%</td></tr>
+          <tr><td>{{ $t('দুর্ঘটনা ক্ষতিপূরণ', 'Accident Compensation') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_accident_fine', '0')) : data_get($nominee, 'distribution_accident_fine', '0') }}%</td></tr>
+          <tr><td>{{ $t('লভ্যাংশ', 'Profit Share') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_profit', '0')) : data_get($nominee, 'distribution_profit', '0') }}%</td></tr>
+          <tr><td>{{ $t('অন্যান্য', 'Others') }}</td><td class="percent">{{ $isBangla ? en2bnNumber(data_get($nominee, 'distribution_others', '0')) : data_get($nominee, 'distribution_others', '0') }}%</td></tr>
         </table>
       </td>
     </tr>
@@ -263,11 +272,11 @@
 
   <table class="signatures">
     <tr>
-      <td>
+      <td><br>
         {{ $t('মনোনীত ব্যক্তি/অভিভাবকের স্বাক্ষর ও তারিখ', 'Nominee/Guardian Signature with Date') }}
       </td>
       <td style="text-align:right;">
-        {{ $t('শ্রমিকের স্বাক্ষর/টিপসই ও তারিখ', 'Employee Signature/Thumb Impression with Date') }}<br><br>
+        {{ $t('শ্রমিকের স্বাক্ষর/টিপসই ও তারিখ', 'Employee Signature/Thumb Impression with Date') }}<br><br><br>
         {{ $t('ম্যানেজার/অনুমোদিত কর্মকর্তার স্বাক্ষর ও তারিখ', 'Manager/Authorized Officer Signature with Date') }}
       </td>
     </tr>

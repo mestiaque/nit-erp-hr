@@ -4,29 +4,18 @@
     $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
     $na = $t('প্রযোজ্য নয়', 'N/A');
 
-    $companyName = $isBangla
-        ? (hr_factory('bn_name') ?? hr_factory('name') ?? general()->name ?? $na)
-        : (hr_factory('name') ?? general()->name ?? hr_factory('bn_name') ?? $na);
-    $companyAddress = $isBangla
-        ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
-        : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
+    $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
+    $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
+    $companyName = $employeeData['company_name'];
+    $companyAddress = $employeeData['company_address'];
+    $designation = $employeeData['designation'];
+    $employeeName = $employeeData['employee_name'];
+    $joiningDate = $employeeData['joining_date'];
+    $employeeId = $employeeData['employee_id'];
+    $section = $employeeData['section'];
+    $department = $employeeData['department'];
+    $designationAttibute = $employeeData['designation_full'];
 
-    $designationModel = optional($employee->designation);
-    $designation = $isBangla
-        ? ($designationModel->bn_name ?? $designationModel->name ?? data_get($employee, 'designation_bn_name') ?? data_get($employee, 'designation_name') ?? $na)
-        : ($designationModel->name ?? data_get($employee, 'designation_name') ?? $designationModel->bn_name ?? data_get($employee, 'designation_bn_name') ?? $na);
-
-    $sectionModel = optional($employee->section);
-    $section = $isBangla
-        ? ($sectionModel->bn_name ?? $sectionModel->name ?? data_get($employee, 'section_bn_name') ?? data_get($employee, 'section_name') ?? $na)
-        : ($sectionModel->name ?? data_get($employee, 'section_name') ?? $sectionModel->bn_name ?? data_get($employee, 'section_bn_name') ?? $na);
-
-    $employeeId = data_get($employee, 'employee_id', $na);
-    $employeeName = $isBangla
-        ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
-        : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
-    $supervisor = data_get($employee, 'supervisor', data_get($employee, 'supervisor_name', $t('সেকশন প্রধান', 'Section Supervisor')));
-    $date = now()->format('d/m/Y');
 @endphp
 
 <style>
@@ -55,6 +44,9 @@
     font-weight: 600;
     width: 180px;
 }
+.respons ol {
+    padding-left: 15px;
+}
 </style>
 
 <div class="job-resp-header">
@@ -63,7 +55,7 @@
     <div class="job-resp-title" style="margin-top:8px;">
         {{ $designation }} {{ $t('এর দায়িত্ব ও কর্তব্য', 'Job Responsibilities and Duties') }}
     </div>
-    <div style="text-align:right; font-weight:600; margin-top:4px;">{{ $t('তারিখ', 'Date') }}: {{ $date }}</div>
+    <div style="text-align:right; font-weight:600; margin-top:4px;">{{ $t('তারিখ', 'Date') }}: {{ $joiningDate }}</div>
 </div>
 
 <table class="job-resp-table">
@@ -79,12 +71,12 @@
         <th>{{ $t('সেকশন', 'Section') }}</th>
         <td>{{ $section }}</td>
         <th colspan="2">{{ $t('যার অধীনে নিয়োজিত থাকবেন', 'Reporting Supervisor') }}</th>
-        <td colspan="2">{{ $supervisor }}</td>
+        <td colspan="2">{{ $designationAttibute->report_to }}</td>
     </tr>
     <tr>
-        <th colspan="1">{{ $t('দায়িত্বের তালিকা', 'Responsibility Checklist') }}</th>
-        <td colspan="5">
-            {{ $t('১) নির্ধারিত কাজ সময়মতো সম্পন্ন করা, ২) উপস্থিতি ও শৃঙ্খলা বজায় রাখা, ৩) নিরাপত্তা নির্দেশনা অনুসরণ করা, ৪) ঊর্ধ্বতন কর্মকর্তার নির্দেশনা মেনে চলা।', '1) Complete assigned tasks on time, 2) Maintain attendance and discipline, 3) Follow safety instructions, 4) Comply with supervisor directives.') }}
+        <th colspan="1">{{ $t('দায়িত্বসমূহ', 'Responsibility') }}</th>
+        <td colspan="5" class="respons">
+            {!! $designationAttibute->responsibilities ?? $t('তথ্য নেই', 'No information available') !!}
         </td>
     </tr>
 </table>

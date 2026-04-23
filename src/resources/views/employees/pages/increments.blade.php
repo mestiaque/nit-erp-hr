@@ -28,7 +28,9 @@
                             <th>Department</th>
                             <th>Section</th>
                             <th>Designation</th>
-                            <th>Gross Salary (Increment)</th>
+                            <th>Previous Salary</th>
+                            <th>Increment Amount</th>
+                            <th>New Salary</th>
                             <th>Increment Date</th>
                             <th>Edit</th>
                         </tr>
@@ -42,10 +44,14 @@
                             <td>{{ $employeeMeta['department'] ?? '-' }}</td>
                             <td>{{ $employeeMeta['section'] ?? '-' }}</td>
                             <td>{{ $employeeMeta['designation'] ?? '-' }}</td>
-                            <td>{{ number_format((float) data_get($row, 'amount', 0), 2) }}</td>
+                            <td>{{ number_format((float) data_get($row, 'previous_salary', 0), 2) }}</td>
+                            <td>{{ number_format((float) data_get($row, 'increment_amount', 0), 2) }}</td>
+                            <td>{{ number_format((float) data_get($row, 'new_salary', 0), 2) }}</td>
                             <td>{{ data_get($row, 'increment_date') ?: '-' }}</td>
                             <td>
-                                <a href="javascript:void(0)" class="btn-custom yellow" data-toggle="modal" data-target="#EditIncrementModal_{{ $loop->index }}" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                @if($loop->index === 0)
+                                    <a href="javascript:void(0)" class="btn-custom yellow" data-toggle="modal" data-target="#EditIncrementModal_{{ $loop->index }}" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                @endif  
                             </td>
                         </tr>
                     @empty
@@ -101,8 +107,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2">
-                        <label class="mb-1">Gross Salary (Increment)</label>
-                        <input type="number" step="0.01" name="amount" value="{{ data_get($row, 'amount') }}" class="form-control form-control-sm" required>
+                        <label class="mb-1">Increment Amount</label>
+                        <input type="number" step="0.01" name="amount" value="{{ data_get($row, 'increment_amount') }}" class="form-control form-control-sm" required>
                     </div>
                     <div class="mb-2">
                         <label class="mb-1">Increment Date</label>

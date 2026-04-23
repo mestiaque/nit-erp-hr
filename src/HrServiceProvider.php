@@ -22,6 +22,20 @@ class HrServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/Config' => config_path('hr'),
         ], 'hr-config');
+
+        // Merge hr-permission into main permission config
+        $hrPermissions = config('hr-permission');
+        if ($hrPermissions && is_array($hrPermissions)) {
+            $mainPermissions = config('permission', []);
+            // If main permission is using ['modules' => ...] structure, merge into modules
+            if (isset($mainPermissions['modules']) && is_array($mainPermissions['modules'])) {
+                $mainPermissions['modules']['HR AND COMPLIANCE'] = $hrPermissions['HR AND COMPLIANCE'] ?? [];
+                config(['permission' => $mainPermissions]);
+            } else {
+                // Flat merge (fallback)
+                config(['permission' => array_merge($mainPermissions, $hrPermissions)]);
+            }
+        }
     }
 
     public function register()

@@ -1,4 +1,36 @@
+@php
+    $language = $language ?? data_get($request ?? null, 'language', 'en');
+    $isBangla = $language === 'bn';
+    $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
+    $na = $t('প্রযোজ্য নয়', 'N/A');
 
+    $companyName = $isBangla
+        ? (hr_factory('bn_name') ?? hr_factory('name') ?? general()->name ?? $na)
+        : (hr_factory('name') ?? general()->name ?? hr_factory('bn_name') ?? $na);
+    $companyAddress = $isBangla
+        ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
+        : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
+
+    $designationModel = optional($employee->designation);
+    $designation = $isBangla
+        ? ($designationModel->bn_name ?? $designationModel->name ?? data_get($employee, 'designation_bn_name') ?? data_get($employee, 'designation_name') ?? $na)
+        : ($designationModel->name ?? data_get($employee, 'designation_name') ?? $designationModel->bn_name ?? data_get($employee, 'designation_bn_name') ?? $na);
+    $sectionModel = optional($employee->section);
+    $section = $isBangla
+        ? ($sectionModel->bn_name ?? $sectionModel->name ?? data_get($employee, 'section_bn_name') ?? data_get($employee, 'section_name') ?? $na)
+        : ($sectionModel->name ?? data_get($employee, 'section_name') ?? $sectionModel->bn_name ?? data_get($employee, 'section_bn_name') ?? $na);
+
+    $cardNo = data_get($employee, 'employee_id', $na);
+    $employeeName = $isBangla
+        ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
+        : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
+    $joiningDate = blank($employee->joining_date) ? $na : \Illuminate\Support\Carbon::parse($employee->joining_date)->format('d/m/Y');
+
+    $previousSalary = number_format((float) (data_get($employee, 'previous_salary', 0)), 2);
+    $newSalary = data_get($employee, 'new_salary') !== null ? number_format((float) data_get($employee, 'new_salary'), 2) : '--';
+    $increment = data_get($employee, 'increment_amount') !== null ? number_format((float) data_get($employee, 'increment_amount'), 2) : '--';
+    $effectiveDate = now()->format('d-m-Y');
+@endphp
 
 <style>
 .appraisal-header {
@@ -40,42 +72,6 @@
     text-align: left;
 }
 </style>
-
-@php
-    $factoryNo = hr_factory('factory_no');
-    $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
-    $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
-    $language = $language ?? data_get($request ?? null, 'language', 'bn');
-    $isBangla = $language === 'bn';
-    $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
-    $na = $t('প্রযোজ্য নয়', 'N/A');
-    $companyName = $employeeData['company_name'];
-    $companyAddress = $employeeData['company_address'];
-    $employeeName = $employeeData['employee_name'];
-    $section = $employeeData['section'] ?? $na;
-    $cardNo = $employeeData['employee_id'] ?? $na;
-    $joiningDate = $employeeData['joining_date'] ?? $na;
-    $designation = $employeeData['designation'] ?? $na;
-    $increment = $increment ?? '';
-    if($factoryNo == 1){
-        $newSalary = $increment->new_salary_comp_1 ?? 0;
-        $previousSalary = $increment->previous_salary_comp_1 ?? 0;
-        $incrementAmount = $increment->increment_amount ?? 0;
-        $effectiveDate = $increment->increment_date ?? 0;
-    }
-    elseif($factoryNo == 2){
-        $newSalary = $increment->new_salary_comp_2 ?? 0;
-        $previousSalary = $increment->previous_salary_comp_2 ?? 0;
-        $incrementAmount = $increment->increment_amount ?? 0;
-        $effectiveDate = $increment->increment_date ?? 0;
-    }
-    else{
-        $newSalary = $increment->new_salary ?? 0;
-        $previousSalary = $increment->previous_salary ?? 0;
-        $incrementAmount = $increment->increment_amount ?? 0;
-        $effectiveDate = $increment->increment_date ?? 0;
-    }
-@endphp
 
 <div class="appraisal-header">
     <h3 style="margin:0;">{{ $companyName }}</h3>
@@ -136,10 +132,10 @@
     <tr>
         <td>{{ $t('এইচ.আর এন্ড কমপ্লায়েন্স', 'HR and Compliance') }}</td>
         <td>{{ $designation }}</td>
-        <td>{{ $isBangla ? en2bnNumber($previousSalary) : $previousSalary }}</td>
-        <td>{{ $isBangla ? en2bnNumber($newSalary) : $newSalary }}</td>
-        <td>{{ $isBangla ? en2bnNumber($incrementAmount) : $incrementAmount }}</td>
-        <td>{{ $isBangla ? bn_date($effectiveDate) : $effectiveDate }}</td>
+        <td>{{ $previousSalary }}</td>
+        <td>{{ $newSalary }}</td>
+        <td>{{ $increment }}</td>
+        <td>{{ $effectiveDate }}</td>
     </tr>
 </table>
 

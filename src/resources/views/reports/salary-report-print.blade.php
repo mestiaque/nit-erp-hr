@@ -32,13 +32,6 @@
     $subSectionMap = collect($hrOptions['subSections'])->pluck('name', 'id');
     $designationMap = collect($hrOptions['designations'])->pluck('name', 'id');
 
-    // Helper: aggregate earnings_deductions entries within date range
-    // Rule:
-    // - OT(+): earning, OT(-): deduction (hour based)
-    // - Day(+): earning, Day(-): deduction (day based)
-    // - Earnings -> earning side
-    // - Deductions -> deduction side
-    // - Advance/IOU -> earning side
     $empExtras = function($emp) use ($from, $to) {
         $other   = json_decode($emp->other_information ?? '{}', true);
         $entries = data_get($other, 'earnings_deductions', []);
