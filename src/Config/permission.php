@@ -124,6 +124,10 @@ return [
             'label' => 'Attendance Report', 
             'permissions' => ['view' => 'View', 'all' => 'All'] 
         ],
+        'hr_job_card_report' => [ 
+            'label' => 'Job Card', 
+            'permissions' => ['view' => 'View', 'all' => 'All'] 
+        ],
         'hr_pro_job_card' => [ 
             'label' => 'Pro. Job Card', 
             'permissions' => ['view' => 'View', 'all' => 'All'] 
