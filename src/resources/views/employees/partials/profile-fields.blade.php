@@ -1,5 +1,5 @@
 @php
-    $other = json_decode($employee->other_information ?? '{}', true);
+    $other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true);
     $profile = is_array($other) ? data_get($other, 'profile', []) : [];
     $selectedSubSection = old('sub_section_id', $employee->sub_section_id ?? data_get($profile, 'sub_section_id'));
     $selectedWorkingPlace = old('working_place_id', $employee->working_place_id ?? data_get($profile, 'working_place_id'));

@@ -1,5 +1,5 @@
 @php
-    $other = json_decode($employee->other_information ?? '{}', true);
+    $other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true);
     $addressInfo = data_get($other, 'address_info', []);
     $districtNames = collect($options['districts'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();
     $thanaNames = collect($options['thanas'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all();

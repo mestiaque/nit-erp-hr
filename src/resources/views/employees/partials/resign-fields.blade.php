@@ -1,4 +1,4 @@
-@php($other = json_decode($employee->other_information ?? '{}', true))
+@php($other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true))
 @php($resign = data_get($other, 'resign_info', []))
 <div class="row">
     <div class="col-md-12 mb-2"><label class="mb-1">Status</label><select name="employment_status" class="form-control form-control-sm"><option value="regular" @selected(old('employment_status', $employee->employment_status) === 'regular')>Regular</option><option value="resign" @selected(old('employment_status', $employee->employment_status) === 'resign')>Resign</option><option value="lefty" @selected(old('employment_status', $employee->employment_status) === 'lefty')>Lefty</option><option value="transfer" @selected(old('employment_status', $employee->employment_status) === 'transfer')>Transfer</option></select></div>

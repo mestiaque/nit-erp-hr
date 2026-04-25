@@ -47,7 +47,7 @@
     $selectedBloodGroup = strtoupper(trim((string) old('blood_group', $employee->blood_group)));
     $selectedPaymentMode = strtolower(trim((string) old('salary_type', $employee->salary_type)));
     $paymentModeOptions = $paymentModeMasterOptions;
-    $profileInfo = json_decode($employee->other_information ?? '{}', true);
+    $profileInfo = is_array($employee->other_information) ? data_get($employee->other_information, 'profile', []) : [];
     $profileInfo = is_array($profileInfo) ? data_get($profileInfo, 'profile', []) : [];
 @endphp
 

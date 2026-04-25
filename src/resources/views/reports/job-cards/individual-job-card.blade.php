@@ -82,7 +82,7 @@
         @php
             $isLocked = false;
             if ($reportType === 'job-card-lock') {
-                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true);
                 $lockKey = 'job_card_lock';
                 $key = $from . '_' . $to;
                 $isLocked = !empty($other[$lockKey][$key]);

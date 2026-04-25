@@ -1,4 +1,4 @@
-@php($other = json_decode($employee->other_information ?? '{}', true))
+@php($other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true))
 @php($settlement = data_get($other, 'final_settlement', []))
 <div class="row">
     <div class="col-md-12 mb-2"><label class="mb-1">Absent Date</label><input type="date" name="absent_date" value="{{ old('absent_date', data_get($settlement, 'absent_date')) }}" class="form-control form-control-sm"></div>

@@ -345,7 +345,7 @@ class HrReportController extends Controller
                 return true;
             })
             ->map(function (User $employee) use ($departmentMap, $sectionMap, $designationMap) {
-                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = $employee->other_information;
                 $status = (string) ($employee->employment_status ?? 'N/A');
 
                 return [
@@ -372,7 +372,7 @@ class HrReportController extends Controller
 
         $rows = $employees
             ->map(function (User $employee) {
-                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = $employee->other_information;
                 $absentDate = data_get($other, 'final_settlement.absent_date');
 
                 return [
@@ -462,7 +462,7 @@ class HrReportController extends Controller
                 $employee = $item['employee'];
                 $increment = $item['increment'];
 
-                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = $employee->other_information;
                 $profile = is_array($other) ? data_get($other, 'profile', []) : [];
                 $grossSalary = (float) ($employee->gross_salary ?? 0);
                 $incValue = ($grossSalary * max(0, $incrementPercent)) / 100;
@@ -584,7 +584,7 @@ class HrReportController extends Controller
             return;
         }
 
-        $other = json_decode($employee->other_information ?? '{}', true);
+        $other = $employee->other_information;
         $other = is_array($other) ? $other : [];
         $rows = collect(data_get($other, 'increments', []));
 
@@ -702,7 +702,7 @@ class HrReportController extends Controller
         $rows = collect();
         $serial = 1;
         foreach ($employees as $employee) {
-            $other = json_decode($employee->other_information ?? '{}', true);
+            $other = $employee->other_information;
             $rows->push([
                 'sl' => $serial++,
                 'working_place' => $workingPlaceMap->get($employee->working_place_id, 'N/A'),
@@ -1432,7 +1432,7 @@ class HrReportController extends Controller
 
         DB::transaction(function () use ($employees, $from, $to) {
             foreach ($employees as $employee) {
-                $other = json_decode($employee->other_information ?? '{}', true);
+                $other = $employee->others_information ; 
                 $other = is_array($other) ? $other : [];
                 $lockKey = 'job_card_lock';
                 if (!isset($other[$lockKey])) {

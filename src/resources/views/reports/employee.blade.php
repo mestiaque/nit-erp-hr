@@ -187,7 +187,7 @@
                     <tbody>
                         @forelse($employees as $employee)
                             @php
-                                $profile = data_get(json_decode($employee->other_information ?? '{}', true), 'profile', []);
+                                $profile = is_array($employee->other_information) ? data_get($employee->other_information, 'profile', []) : [];
                                 $employmentStatus = (string) ($employee->employment_status ?? 'regular');
                                 if ($employmentStatus === '') {
                                     $employmentStatus = 'regular';

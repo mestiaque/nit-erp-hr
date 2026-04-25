@@ -1,4 +1,4 @@
-@php($other = json_decode($employee->other_information ?? '{}', true))
+@php($other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true))
 @php($nomineeInfo = data_get($other, 'nominee_info', []))
 @php($nomineeImage = data_get($nomineeInfo, 'nominee_image'))
 @php($districtNames = collect($options['districts'] ?? [])->pluck('name')->map(fn ($name) => (string) $name)->all())

@@ -1,4 +1,4 @@
-@php($other = json_decode($employee->other_information ?? '{}', true))
+@php($other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true))
 @php($salaryInfo = data_get($other, 'salary_info', []))
 <div class="row">
     <div class="col-md-6 mb-2"><label class="mb-1">Gross Salary(Actual)</label><input type="number" step="0.01" name="gross_salary" value="{{ old('gross_salary', $employee->gross_salary) }}" class="form-control form-control-sm"></div>

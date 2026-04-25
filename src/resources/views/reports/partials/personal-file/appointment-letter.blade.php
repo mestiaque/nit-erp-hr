@@ -12,7 +12,6 @@
     $companyAddress = $isBangla
         ? (hr_factory('bn_address') ?? hr_factory('address') ?? general()->address ?? $na)
         : (hr_factory('address') ?? general()->address ?? hr_factory('bn_address') ?? $na);
-
     $employeeName = $isBangla
         ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
         : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);

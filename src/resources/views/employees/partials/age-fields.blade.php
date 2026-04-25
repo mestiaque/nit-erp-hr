@@ -1,4 +1,4 @@
-@php($other = json_decode($employee->other_information ?? '{}', true))
+@php($other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true))
 @php($ageInfo = data_get($other, 'age_verification', []))
 <div class="row">
     <div class="col-md-12 mb-2"><label class="mb-1">Physical Ability</label><input type="text" name="physical_ability" value="{{ old('physical_ability', data_get($ageInfo, 'physical_ability')) }}" class="form-control form-control-sm"></div>

@@ -123,8 +123,8 @@
                     <div class="col-md-3 mb-3">
                         <label class="mb-1">Language</label>
                         <select name="language" class="form-control form-control-sm">
-                            <option value="en" @selected(($request->language ?? 'en') === 'en')>English</option>
-                            <option value="bn" @selected($request->language === 'bn')>বাংলা</option>
+                            <option value="bn" @selected(($request->language ?? 'bn') === 'bn')>বাংলা</option>
+                            <option value="en" @selected(($request->language ) === 'en')>English</option>
                         </select>
                     </div>
 

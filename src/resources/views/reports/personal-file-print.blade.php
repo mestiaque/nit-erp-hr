@@ -232,7 +232,7 @@
 
 @forelse($employees as $employee)
     @php
-        $other = json_decode((string) $employee->other_information, true);
+        $other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true);
         $other = is_array($other) ? $other : [];
         $nominee = data_get($other, 'nominee_info', []);
         $age = data_get($other, 'age_verification', []);
