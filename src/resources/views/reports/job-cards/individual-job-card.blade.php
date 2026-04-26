@@ -180,10 +180,11 @@
                         <td class="tc">{{ $dayName($d, $isBangla) }}</td>
                         <td class="tc">
                             @if($att && $att->in_time)
+
                                 {{ $isBangla ? bn_time($att->in_time) : $fmtTime($att->in_time) }}
-                            @elseif($shiftStart)
+                            {{-- @elseif($shiftStart)
                                 <span >{{ $shiftStartDisplay }}</span>
-                            @else
+                            @else --}}
                                 -
                             @endif
                         </td>
@@ -192,9 +193,9 @@
                                 {{ $isBangla ? bn_time($displayOut) : $fmtTime($displayOut) }}
                             @elseif($att && $att->out_time)
                                 {{ $isBangla ? bn_time($att->out_time) : $fmtTime($att->out_time) }}
-                            @elseif($shiftEnd)
+                            {{-- @elseif($shiftEnd)
                                 <span >{{ $shiftEndDisplay }}</span>
-                            @else
+                            @else --}}
                                 -
                             @endif
                         </td>

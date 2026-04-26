@@ -31,7 +31,7 @@
     $section = $isBangla
         ? (data_get($sectionAttr, 'bn_name') ?? data_get($sectionAttr, 'name') ?? data_get($employee, 'section_bn_name') ?? data_get($employee, 'section_name') ?? $na)
         : (data_get($sectionAttr, 'name') ?? data_get($employee, 'section_name') ?? data_get($sectionAttr, 'bn_name') ?? data_get($employee, 'section_bn_name') ?? $na);
-    
+
     $masterData = \App\Services\HrOptionsService::getOptions();
     $employeeOthers = $employee->otherInfo();
 
@@ -116,13 +116,13 @@
         <p style="margin:0 0 6px;"><strong>১। বেতন ও ভাতাঃ</strong></p>
         <table class="salary-table" style="margin-bottom:10px;">
             <tbody>
-                <tr><td>ক। মাসিক মূল মঞ্জুরী (Monthly Basic Wages)</td><td style="width:70px;">টাকা</td><td style="width:140px;">{{ en2bnNumber($basic, 2) }} /=</td></tr>
-                <tr><td>খ। মাসিক বাড়ী ভাড়া ভাতা (Monthly House Rent )</td><td>টাকা</td><td>{{ en2bnNumber($house, 2) }} /=</td></tr>
-                <tr><td>গ। মাসিক চিকিৎসা ভাতা (Monthly Medical Allowance)</td><td>টাকা</td><td>{{ en2bnNumber($medical, 2) }} /=</td></tr>
-                <tr><td>ঘ। মাসিক যাতায়াত ভাতা (Monthly Transport Allowance)</td><td>টাকা</td><td>{{ en2bnNumber($transport, 2) }} /=</td></tr>
-                <tr style="border-bottom: 1px solid rgba(0, 0, 0, 0.589)"><td>ঙ। মাসিক খাদ্য ভাতা (Monthly Fooding Allowance)</td><td>টাকা</td><td>{{ en2bnNumber($food, 2) }} /=</td></tr>
-                <tr><td><strong>মাসিক সর্বমোট টাকা (Monthly Gross Amount)</strong></td><td>টাকা</td><td><strong>{{ en2bnNumber($gross, 2) }} /=</strong></td></tr>
-                <tr><td>প্রতি ঘন্টায় ও.টির হার(Over Time)</td><td>টাকা</td><td>{{ en2bnNumber($otRate, 2) }} /=</td></tr>
+                <tr><td>ক। মাসিক মূল মঞ্জুরী (Monthly Basic Wages)</td><td style="width:70px;">টাকা</td><td style="width:140px;" class="text-right">{{ en2bnNumber(number_format($basic, 2)) }} /=</td></tr>
+                <tr><td>খ। মাসিক বাড়ী ভাড়া ভাতা (Monthly House Rent )</td><td>টাকা</td><td class="text-right">{{ en2bnNumber(number_format($house, 2)) }} /=</td></tr>
+                <tr><td>গ। মাসিক চিকিৎসা ভাতা (Monthly Medical Allowance)</td><td>টাকা</td><td class="text-right">{{ en2bnNumber(number_format($medical, 2)) }} /=</td></tr>
+                <tr><td>ঘ। মাসিক যাতায়াত ভাতা (Monthly Transport Allowance)</td><td>টাকা</td><td class="text-right">{{ en2bnNumber(number_format($transport, 2)) }} /=</td></tr>
+                <tr style="border-bottom: 1px solid rgba(0, 0, 0, 0.589)"><td>ঙ। মাসিক খাদ্য ভাতা (Monthly Fooding Allowance)</td><td>টাকা</td><td class="text-right">{{ en2bnNumber(number_format($food, 2)) }} /=</td></tr>
+                <tr><td><strong>মাসিক সর্বমোট টাকা (Monthly Gross Amount)</strong></td><td>টাকা</td><td class="text-right"><strong>{{ en2bnNumber(number_format($gross, 2)) }} /=</strong></td></tr>
+                <tr><td>প্রতি ঘন্টায় ও.টির হার(Over Time)</td><td>টাকা</td><td class="text-right">{{ en2bnNumber(number_format($otRate, 2)) }} /=</td></tr>
             </tbody>
         </table>
 
