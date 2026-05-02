@@ -192,6 +192,13 @@ return [
                     'permission' => 'hr_employee'
                 ],
                 [
+                    'title'      => 'Attendance',
+                    'icon'       => 'fa-solid fa-calendar-check',
+                    'route'      => '/admin/hr-center/attendances',
+                    'icon_color' => 'text-success',
+                    'permission' => 'hr_attendance',
+                ],
+                [
                     'title'      => 'Factory Holiday',
                     'icon'       => 'fa-solid fa-arrow-right',
                     'route'      => '/admin/hr-center/holidays',
@@ -331,6 +338,13 @@ return [
                             'route'      => '/admin/hr-center/reports/pro-job-card',
                             'icon_color' => 'text-success',
                             'permission' => 'hr_pro_job_card',
+                        ],
+                        [
+                            'title'       => 'Pay Slip Report',
+                            'icon'        => 'fa-solid fa-file-invoice-dollar',
+                            'route'       => '/admin/hr-center/reports/pay-slip',
+                            'icon_color'  => 'text-danger',
+                            'permission'  => ''
                         ],
                     ]
                 ],

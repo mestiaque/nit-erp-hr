@@ -212,6 +212,9 @@ return [
                 'meal_payment_way' => ['label' => 'Tiffin, Night & Dinner Payment Way', 'type' => 'select', 'rules' => 'nullable|in:daily,monthly', 'options' => ['daily' => 'Daily', 'monthly' => 'Monthly']],
                 'weekend_allowance_count' => ['label' => 'Weekend Allowance Count', 'type' => 'select', 'rules' => 'nullable|in:gross_month_day,basic_working_day,basic_104_2_5', 'options' => ['gross_month_day' => 'gross/monthDay', 'basic_working_day' => 'basic/working day', 'basic_104_2_5' => 'basic/104*2.5']],
                 'holiday_allowance' => ['label' => 'Holiday Allowance', 'type' => 'number', 'rules' => 'nullable|numeric|min:0', 'step' => '0.01'],
+                'car_fuel' => ['label' => 'Car & Fuel', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
+                'phone_internet' => ['label' => 'Phone & Internet', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
+                'extra_facility' => ['label' => 'Extra Facility', 'type' => 'text', 'rules' => 'nullable|string|max:191'],
                 'is_ot_basis_wphp' => ['label' => 'Is OT Basis (WPHP)', 'type' => 'checkbox', 'rules' => 'nullable|boolean'],
                 'is_ot_basis_main' => ['label' => 'Is OT Basis (Main)', 'type' => 'checkbox', 'rules' => 'nullable|boolean'],
                 'is_ot_basis_others_1' => ['label' => 'Is OT Basis (Others-1)', 'type' => 'checkbox', 'rules' => 'nullable|boolean'],
@@ -240,6 +243,7 @@ return [
                 'website' => ['label' => 'Website', 'type' => 'url', 'rules' => 'nullable|url|max:191'],
                 'weekend' => ['label' => 'Weekend', 'type' => 'text', 'rules' => 'nullable|string|max:50'],
                 'roster_day' => ['label' => 'Roster Day', 'type' => 'text', 'rules' => 'nullable|string|max:50'],
+                'allow_ot_hour' => ['label' => 'Allow OT Hour', 'type' => 'number', 'rules' => 'nullable|numeric|min:0', 'step' => '0.01'],
                 'stamp_amount' => ['label' => 'Stamp Amount', 'type' => 'number', 'rules' => 'nullable|numeric|min:0', 'step' => '0.01'],
                 'attendance_bonus_late_days_more_than' => ['label' => 'Attendance Bonus Cut After Late Days', 'type' => 'number', 'rules' => 'nullable|integer|min:0'],
                 'ot_rate' => ['label' => 'OT Rate', 'type' => 'number', 'rules' => 'nullable|numeric|min:0', 'step' => '0.01'],
@@ -427,10 +431,12 @@ return [
         'salary-production' => 'Salary Production',
         'salary-summary' => 'Wages And Salary Summary',
         // Comprehensive new reports
+
         'job-card-report' => 'Job Card Report',
         'attendance-report' => 'Attendance Report',
         'meal-report' => 'Tiffin / Diner / Night Report',
         'bonus-sheet' => 'Bonus Sheet',
         'salary-report' => 'Salary Report',
+        'pay-slip' => 'Pay Slip',
     ],
 ];

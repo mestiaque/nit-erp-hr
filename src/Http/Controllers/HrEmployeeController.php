@@ -303,6 +303,7 @@ class HrEmployeeController extends Controller
             'spouse_name_bn'      => 'nullable|string|max:191',
             'gender'              => 'nullable|string|max:20',
             'boys'                => 'nullable|integer|min:0',
+            'girls'               => 'nullable|integer|min:0',
             'religion'            => 'nullable|string|max:100',
             'dob'                 => 'nullable|date',
             'blood_group'         => 'nullable|string|max:10',

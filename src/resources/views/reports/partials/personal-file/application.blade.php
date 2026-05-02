@@ -17,107 +17,239 @@
     $presentAddress = $employeeData['present_address'] ?? $na;
     $permanentAddress = $employeeData['permanent_address'] ?? $na;
     $applicationDate = $applicationDate ?? ($employeeData['joining_date'] ?? now()->format('d/m/Y'));
+    $spouseName = $employeeData['spouse_name'] ?? $na;
+    $education = $employeeData['education'] ?? $na;
+    $gender = $employeeData['gender'] ?? $na;
     // Try to extract address parts if available
     $presentAddressFull = $isBangla ? ($employeeData['present_address_bn_full'] ?? $na) : ($employeeData['present_address_full'] ?? $na);
     $permanentAddressFull = $isBangla ? ($employeeData['permanent_address_bn_full'] ?? $na) : ($employeeData['permanent_address_full'] ?? $na);
+    $birthDate = $employeeData['birth_date'] ?? $na;
+    $employeeAge = $employeeData['employee_age'] ?? $na;
+    $religion = $employeeData['religion'] ?? $na;
+    $girls = $employeeData['girls'] ?? 0;
+    $boys = $employeeData['boys'] ?? 0;
+    $nid = $employeeData['nid'] ?? $na;
+    $maritalStatus = $employeeData['marital_status'] ?? $na;
+    $bloodGroup = $employeeData['blood_group'] ?? $na;
+    $mobileNumber = $employeeData['mobile_number'] ?? $na;
+    $emergencyMobile = $employeeData['emergency_mobile'] ?? $na;
+    $employeePhoto = $employeeData['employee_photo'] ?? $na;
 @endphp
+    <style>
+        @import url('https://googleapis.com');
+
+        body {
+            font-family: 'Hind Siliguri', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            font-size: 15px;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm 20mm;
+            margin: auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+
+        .mailing-address {
+            border: 1px solid #000;
+            padding: 5px;
+            width: fit-content;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .photo-area {
+            float: right;
+            width: 120px;
+            height: 140px;
+            border: 1px solid #000;
+            margin-top: -40px;
+        }
+
+        .photo-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .header { margin-top: 20px; line-height: 1.6; }
+
+        .title {
+            text-align: center;
+            text-decoration: underline;
+            font-size: 22px;
+            font-weight: bold;
+            margin: 25px 0;
+        }
+
+        .subject { font-weight: bold; margin-bottom: 15px; }
+
+        .body-text { line-height: 1.8; text-align: justify; margin-bottom: 20px; }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .info-table td {
+            padding: 5px 0;
+            vertical-align: top;
+        }
+
+        .label { width: 160px; font-weight: 600; }
+        .colon { width: 20px; text-align: center; }
+        .data { border-bottom: 1px dotted #888; }
+
+        .address-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .footer {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .signature-box {
+            text-align: center;
+            width: 250px;
+        }
+
+        .sig-line {
+            border-top: 1px solid #000;
+            margin-top: 50px;
+            padding-top: 5px;
+        }
+
+        @media print {
+            body { background: none; padding: 0; }
+            .page { box-shadow: none; margin: 0; }
+        }
+    </style>
 
 <div style="font-family: 'Nikosh', 'Arial', sans-serif; max-width: 800px; margin: auto; color: #000; line-height: 1.6;">
 
-    <!-- Header -->
-    <div style="text-align:center; margin-bottom:20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-        <h2 style="margin:0; font-size: 22px; text-transform: uppercase;">{{ $companyName }}</h2>
-        <div style="font-size: 13px;">{{ $companyAddress }}</div>
-        <div style="margin-top:8px; font-weight:bold; font-size:18px; text-decoration: underline;">
-            {{ $t('চাকরির আবেদন পত্র', 'Application for Employment') }}
-        </div>
+<div class="page">
+    <div class="photo-area">
+        <!-- এখানে প্রার্থীর ছবি বসবে -->
+        @if($employeePhoto !== $na)
+            <img src="{{ asset($employeePhoto) }}" alt="Employee Photo">
+        @else
+            <div style="text-align: center; padding-top: 50px; color: #888;">ছবি নেই</div>
+        @endif
     </div>
 
-    <!-- Date and To -->
-    <div style="margin-bottom:20px;">
-        {{ $t('তারিখ', 'Date') }}: {{ $applicationDate }}<br>
-        {{ $t('বরাবর', 'To') }},<br>
-        <strong>{{ $t('ব্যবস্থাপক (এইচআর ও এডমিন)', 'Manager (HR & Admin)') }}</strong><br>
+    <div class="header">
+        বরাবর,<br>
+        <strong>হেড অব এইচআর</strong><br>
         {{ $companyName }}<br>
         {{ $companyAddress }}
     </div>
 
-    <!-- Subject -->
-    <div style="margin-bottom:20px; font-weight:bold;">
-        {{ $t('বিষয়ঃ', 'Subject:') }} {{ $designation }} {{ $t('পদে চাকরির জন্য আবেদন।', ' পদে চাকরির জন্য আবেদন।') }}
+    <div class="subject">বিষয়ঃ <span style="border-bottom: 1px solid #000;">{{$designation}}</span> পদে চাকুরীর জন্য আবেদন।</div>
+
+    <div class="body-text">
+        মহোদয়,<br>
+        বিস্বস্ত সূত্রে জানিতে পারিলাম যে, আপনার সুনামধন্য শিল্প প্রতিষ্ঠানে <span style="font-weight: bold;">{{$designation}}</span> পদে লোক নিয়োগ করা হবে। আমি উক্ত পদের একজন প্রার্থী হিসেবে আবেদন করিতেছি। আমার সংক্ষিপ্ত জীবন বৃত্তান্ত আপনার সদয় বিবেচনার জন্য নিম্নে লিপিবদ্ধ করিলাম এবং প্রয়োজনীয় কাগজ পত্রাদি সংযুক্ত করিলামঃ
     </div>
 
-    <div style="margin-bottom:15px;">
-        {{ $t('জনাব,', 'Dear Sir,') }}<br>
-        {{ $t('বিনীত নিবেদন এই যে, আমি আপনার প্রতিষ্ঠানে উপরোক্ত শূন্য পদে একজন দক্ষ কর্মী হিসেবে যোগদান করতে আগ্রহী। আমার প্রয়োজনীয় জীবন-বৃত্তান্ত ও ব্যক্তিগত তথ্যাদি আপনার সদয় বিবেচনার জন্য নিচে উপস্থাপন করছিঃ',
-           'With due respect, I would like to apply for the above-mentioned vacant position in your esteemed organization. My personal and professional details are presented below for your kind consideration:') }}
-    </div>
-
-    <!-- Personal Info Table -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+    <table class="info-table">
         <tr>
-            <td style="width: 30%; padding: 6px; border: 1px solid #000;"><strong>{{ $t('আবেদনকারীর নাম', 'Applicant Name') }}</strong></td>
-            <td colspan="3" style="padding: 6px; border: 1px solid #000;">: {{ $employeeName }}</td>
+            <td class="label">০১। নাম</td><td class="colon">ঃ</td><td class="data">{{ $employeeName }}</td>
         </tr>
         <tr>
-            <td style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('পিতার নাম', 'Father\'s Name') }}</strong></td>
-            <td colspan="3" style="padding: 6px; border: 1px solid #000;">: {{ $fatherName }}</td>
+            <td class="label">০২। পিতার নাম</td><td class="colon" >ঃ</td><td class="data">{{ $fatherName }}</td>
         </tr>
         <tr>
-            <td style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('মাতার নাম', 'Mother\'s Name') }}</strong></td>
-            <td colspan="3" style="padding: 6px; border: 1px solid #000;">: {{ $motherName }}</td>
+            <td class="label">০৩। মাতার নাম</td><td class="colon">ঃ</td><td class="data">{{ $motherName }}</td>
         </tr>
         <tr>
-            <td rowspan="1" style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('বর্তমান ঠিকানা', 'Present Address') }}</strong></td>
-            <td colspan="3" style="padding: 6px; border: 1px solid #000;">
-                : {{ $presentAddressFull }}
+            <td class="label">০৪। স্বামী/স্ত্রীর নাম</td><td class="colon">ঃ</td><td class="data">{{ $spouseName }}</td>
+        </tr>
+        <tr>
+            <td class="label">০৫। স্থায়ী ঠিকানা</td><td class="colon">ঃ</td>
+            <td class="data">
+               {{ $permanentAddressFull }}
             </td>
         </tr>
         <tr>
-            <td rowspan="1" style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('স্থায়ী ঠিকানা', 'Permanent Address') }}</strong></td>
-            <td colspan="3" style="padding: 6px; border: 1px solid #000;">
-                : {{ $permanentAddressFull }}
+            <td class="label">০৬। বর্তমান ঠিকানা</td><td class="colon">ঃ</td>
+            <td class="data">
+                {{ $presentAddressFull }}
             </td>
         </tr>
         <tr>
-            <td style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('আবেদিত পদ', 'Applied Post') }}</strong></td>
-            <td style="padding: 6px; border: 1px solid #000;">{{ $designation }}</td>
+            <td colspan="3">
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">০৭। জন্ম তারিখ ঃ <span class="data">{{ $birthDate }}</span></div>
+                    <div style="width: 45%;">০৮। বয়স ঃ <span class="data">{{ $t(en2bnNumber($employeeAge), $employeeAge ) }}</span></div>
+                </div>
+            </td>
         </tr>
         <tr>
-            <td style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('বিভাগ', 'Department') }}</strong></td>
-            <td style="padding: 6px; border: 1px solid #000;">{{ $department }}</td>
+            <td colspan="3">
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">০৯। শিক্ষাগত যোগ্যতা ঃ <span class="data">{{ $education }}</span></div>
+                    <div style="width: 45%;">১০। লিঙ্গ ঃ <span class="data">{{ $gender }}</span></div>
+                </div>
+            </td>
         </tr>
         <tr>
-            <td style="padding: 6px; border: 1px solid #000;"><strong>{{ $t('সেকশন', 'Section') }}</strong></td>
-            <td style="padding: 6px; border: 1px solid #000;">{{ $section }}</td>
+            <td colspan="3">
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">১১। জাতীয়তা ঃ <span class="data">বাংলাদেশী (জন্ম সূত্রে)</span></div>
+                    <div style="width: 45%;">১২। ধর্ম ঃ <span class="data">{{ $religion }}</span></div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">১৩। জাতীয় পরিচয়পত্রের নম্বর</td><td class="colon">ঃ</td><td class="data">{{ en2bnNumber($nid) }}</td>
+        </tr>
+        <tr>
+            <td colspan="3">
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">১৪। বৈবাহিক অবস্থা ঃ <span class="data">{{ $maritalStatus }}</span></div>
+                    <div style="width: 45%;">১৫। সন্তান সংখ্যা ঃ {{ en2bnNumber($girls + $boys) }} (ছেলে: {{ en2bnNumber($boys) }}, মেয়ে: {{ en2bnNumber($girls) }})</div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3">
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="width: 45%;">১৬। মোবাইল নম্বর ঃ <span class="data">{{ en2bnNumber($mobileNumber) }}</span></div>
+                    <div style="width: 45%;">১৭। রক্তের গ্রুপ ঃ <span class="data">{{ $bloodGroup }}</span></div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">১৮। জরুরী মোবাইল নম্বর</td><td class="colon">ঃ</td><td class="data">{{ en2bnNumber($emergencyMobile) }}</td>
         </tr>
     </table>
 
-    <div style="margin-bottom:15px; text-align: justify;">
-        {{ $t('আমি অঙ্গীকার করছি যে, উক্ত পদে নিয়োগ প্রাপ্ত হলে আমি প্রতিষ্ঠানের সকল নিয়ম-কানুন মেনে নিষ্ঠা ও সততার সাথে দায়িত্ব পালন করব।',
-           'I assure you that if I am appointed, I will perform my duties with honesty, dedication, and strict adherence to company rules.') }}
+    <div class="body-text">
+        অতএব মহোদয়ের সমীপে বিনীত নিবেদন এই যে, আমার উপরোক্ত তথ্যাদী সম্পূর্ণ সত্য। উপরোক্ত তথ্যাদী বিবেচনা করিয়া আমাকে নিয়োগ দান করিলে আমি আপনার নিকট চির কৃতজ্ঞ থাকিব এবং আমার সর্বাত্মক চেষ্টা দ্বারা প্রতিষ্ঠানের সুনাম অক্ষুণ্ণ রাখিতে সচেষ্ট থাকিব।
     </div>
 
-    <div style="margin-bottom:15px;">
-        {{ $t('অতএব, বিনীত প্রার্থনা এই যে, আমার সার্বিক যোগ্যতা বিবেচনা করে আমাকে আপনার প্রতিষ্ঠানে উক্ত পদে কাজ করার সুযোগ দানে আপনার সদয় মর্জি হয়।',
-           'Therefore, I pray and hope that you would be kind enough to grant me the opportunity to work in the mentioned position.') }}
+    <div class="footer">
+        <div>তারিখঃ {{$applicationDate}} ইং</div>
+        <div class="signature-box">
+            <div class="sig-line">
+                স্বাক্ষর ও প্রার্থীর নামঃ <br>
+                <strong>{{ $employeeName }}</strong>
+            </div>
+        </div>
     </div>
+</div>
 
-    <!-- Signatures -->
-    <div style="margin-top: 50px;">
-        <table style="width: 100%;">
-            <tr>
-                <td style="width: 50%;">
-                    {{ $t('ধন্যবাদান্তে,', 'Sincerely,') }}<br><br><br>
-                    --------------------------<br>
-                    <strong>{{ $t('আবেদনকারীর স্বাক্ষর', 'Applicant Signature') }}</strong>
-                </td>
-                <td style="width: 50%; text-align: right; vertical-align: bottom;">
-                    --------------------------<br>
-                    <strong>{{ $t('কর্তৃপক্ষের স্বাক্ষর', 'Authorized Signature') }}</strong>
-                </td>
-            </tr>
-        </table>
-    </div>
 
 </div>

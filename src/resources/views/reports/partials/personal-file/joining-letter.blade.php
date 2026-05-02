@@ -4,7 +4,7 @@
 @php
     $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
     $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
-    $language = $language ?? data_get($request ?? null, 'language', 'bn');
+        $language = $language ?? data_get($request ?? null, 'language', 'bn');
     $isBangla = $language === 'bn';
     $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
     $na = $t('প্রযোজ্য নয়', 'N/A');
@@ -18,91 +18,155 @@
     $joiningDate = $employeeData['joining_date'] ?? $na;
     $department = $employeeData['department'] ?? $na;
     $subSection = $employeeData['sub_section'] ?? $na;
+    $fatherName = $employeeData['father_name'] ?? $na;
+    $motherName = $employeeData['mother_name'] ?? $na;
+    $spouseName = $employeeData['spouse_name'] ?? $na;
 @endphp
+
+    <style>
+        @import url('https://googleapis.com');
+
+        body {
+            font-family: 'Hind Siliguri', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .letter-container {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .date-section { margin-top: 10px; }
+
+        .photo-box {
+            width: 100px;
+            height: 120px;
+            border: 1px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .card-no-box {
+            border: 1px solid #000;
+            padding: 5px 15px;
+            float: right;
+            margin-top: 0px;
+        }
+
+        .title {
+            text-align: center;
+            text-decoration: underline;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+            clear: both;
+        }
+
+        .address-section { margin-bottom: 20px; line-height: 1.6; }
+
+        .subject { font-weight: bold; margin-bottom: 20px; }
+
+        .content { line-height: 2; text-align: justify; }
+
+        .input-line {
+            border-bottom: 1px dotted #000;
+            display: inline-block;
+            padding: 0 10px;
+            font-weight: 600;
+        }
+
+        .footer {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .signature-area {
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            width: 200px;
+            text-align: center;
+            margin-top: 80px;
+        }
+
+        .authority-sign {
+            float: right;
+            text-align: right;
+            margin-top: 150px;
+        }
+
+        @media print {
+            body { background: none; padding: 0; }
+            .letter-container { box-shadow: none; margin: 0; }
+        }
+    </style>
 
 <div style="font-family: 'Nikosh', 'Arial', sans-serif; max-width: 800px; margin: auto; color: #000; line-height: 1.5;">
 
-    <!-- Header -->
-    <div style="text-align:center; margin-bottom:20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-        <h2 style="margin:0; font-size: 24px; text-transform: uppercase;">{{ $companyName }}</h2>
-        <div style="font-size: 14px;">{{ $companyAddress }}</div>
+
+<div class="letter-container">
+    <div class="header-top">
+        <div class="date-section">তারিখঃ <span class="input-line">০৮/০৪/২০২৪</span></div>
     </div>
 
-    <!-- Date -->
-    <div style="text-align: right; margin-bottom: 20px;">
-        <strong>{{ $t('তারিখ', 'Date') }}:</strong> {{ $joiningDate }}
-    </div>
 
-    <!-- To Address -->
-    <div style="margin-bottom:25px;">
-        {{ $t('বরাবর', 'To') }},<br>
-        <strong>{{ $t('ব্যবস্থাপক (এইচআর, এডমিন ও কমপ্লায়েন্স)', 'Manager (HR, Admin & Compliance)') }}</strong><br>
+    <div class="title">যোগদান পত্র (Joining Letter)</div>
+    <div class="card-no-box">কার্ড নং: <span class="input-line"></span></div>
+
+    <div class="address-section">
+        বরাবর,<br>
         {{ $companyName }}<br>
-        {{ $companyAddress }}
+        {{ $companyAddress }}।
     </div>
 
-    <!-- Subject -->
-    <div style="margin-bottom:20px; font-weight:bold;">
-        {{ $t('বিষয়ঃ যোগদান পত্র প্রদান প্রসঙ্গে।', 'Subject: Submission of Joining Letter.') }}
+    <div class="subject">বিষয়ঃ চাকুরীতে যোগদান প্রসঙ্গে।</div>
+
+    <div class="content">
+        জনাব,<br>
+        আমি <span class="input-line">{{ $employeeName }}</span>,
+        পিতাঃ <span class="input-line">{{ $fatherName }}</span>,
+        মাতাঃ <span class="input-line">{{ $motherName }}</span>, <br>
+        স্বামী/স্ত্রীঃ <span class="input-line">{{ $spouseName }}</span>
+        <span class="input-line">{{ $joiningDate }}</span> ইং তারিখের নিয়োগ পত্রের প্রদত্ত নিয়মাবলী মেনে অত্র প্রতিষ্ঠানে অদ্য
+        <span class="input-line">{{ $joiningDate }}</span> ইং তারিখে সকাল
+        <span class="input-line">০৮:০০</span> ঘটিকার সময়
+        <span class="input-line">{{ $designation }}</span> পদে
+        <span class="input-line">{{ $department }}</span> সেকশনে যোগদান করিলাম।
+        <br><br>
+        আমি এই মর্মে অঙ্গীকার করিতেছি যে, আমি কাহারো দ্বারা প্ররোচিত বা প্রলুব্ধ না হয়ে স্বেচ্ছায় ও স্বজ্ঞানে নিয়োগ পত্রের সকল শর্ত মেনে ও বুঝে উক্ত পদে যোগদান করিলাম এবং আমি অত্র প্রতিষ্ঠানের সকল নিয়ম কানুন মানিয়া চলিব।
+        <br><br>
+        অতএব, মহোদয় অনুগ্রহ পূর্বক উক্ত পদের কাজে যোগদানের অনুমতি প্রদান করতে আপনার একান্ত মর্জি হয়।
     </div>
 
-    <!-- Salutation & Body -->
-    <div style="margin-bottom:15px; text-align: justify;">
-        {{ $t('জনাব,', 'Dear Sir,') }}<br>
-        {{ $t('আপনার নিকট হতে প্রাপ্ত নিয়োগপত্রের শর্তানুযায়ী আমি আজ', 'In accordance with the terms and conditions of the appointment letter issued by your organization, I am pleased to join today') }}
-        <strong>{{ $joiningDate }}</strong>
-        {{ $t('ইং তারিখ সকাল ৯:০০ ঘটিকায় আপনার প্রতিষ্ঠানে নির্ধারিত পদে যোগদান করলাম। আমার কর্মসংস্থান সংক্রান্ত প্রয়োজনীয় তথ্যাদি নিম্নরূপঃ', ' at 09:00 AM in the assigned position. My employment details are as follows:') }}
-    </div>
+    <div class="footer">
+        <div>
+            <div class="signature-area">
+                স্বাক্ষর: <span style="font-weight: bold;">{{ $employeeName }}</span>
+            </div>
+            <p style="margin-top: 10px;">আপনাকে কাজে যোগদানের অনুমতি প্রদান করা হল।</p>
+        </div>
 
-    <!-- Information Table -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-        <tr>
-            <td style="width: 25%; padding: 8px; border: 1px solid #000;"><strong>{{ $t('নাম', 'Name') }}</strong></td>
-            <td style="width: 25%; padding: 8px; border: 1px solid #000;">{{ $employeeName }}</td>
-            <td style="width: 25%; padding: 8px; border: 1px solid #000;"><strong>{{ $t('আইডি নম্বর', 'ID No.') }}</strong></td>
-            <td style="width: 25%; padding: 8px; border: 1px solid #000;">{{ $employeeId }}</td>
-        </tr>
-        <tr>
-            <td style="padding: 8px; border: 1px solid #000;"><strong>{{ $t('বিভাগ', 'Department') }}</strong></td>
-            <td style="padding: 8px; border: 1px solid #000;">{{ $department }}</td>
-            <td style="padding: 8px; border: 1px solid #000;"><strong>{{ $t('সেকশন', 'Section') }}</strong></td>
-            <td style="padding: 8px; border: 1px solid #000;">{{ $section }}</td>
-        </tr>
-        <tr>
-            <td style="padding: 8px; border: 1px solid #000;"><strong>{{ $t('উপ-সেকশন', 'Sub-Section') }}</strong></td>
-            <td style="padding: 8px; border: 1px solid #000;">{{ $subSection }}</td>
-            <td style="padding: 8px; border: 1px solid #000;"><strong>{{ $t('পদবী', 'Designation') }}</strong></td>
-            <td style="padding: 8px; border: 1px solid #000;">{{ $designation }}</td>
-        </tr>
-        <tr>
-            <td style="padding: 8px; border: 1px solid #000;"><strong>{{ $t('গ্রেড', 'Grade') }}</strong></td>
-            <td colspan="3" style="padding: 8px; border: 1px solid #000;">{{ $grade }}</td>
-        </tr>
-    </table>
-
-    <div style="margin-bottom:20px; text-align: justify;">
-        {{ $t('আমি অঙ্গীকার করছি যে, আমি আপনার প্রতিষ্ঠানের সকল বিদ্যমান বিধি-বিধান ও শৃঙ্খলা যথাযথভাবে মেনে চলব এবং আমাকে অর্পিত দায়িত্ব অত্যন্ত নিষ্ঠা ও সততার সাথে পালন করতে সচেষ্ট থাকব।', 'I hereby declare that I will strictly abide by all the rules and regulations of the company and will perform my duties with the utmost sincerity, honesty, and dedication.') }}
+        <div class="authority-sign">
+            <p style="border-top: 1px solid #000; width: 150px; text-align: center;">কর্তৃপক্ষের স্বাক্ষর</p>
+        </div>
     </div>
-
-    <div style="margin-bottom:40px;">
-        {{ $t('অতএব, আমার যোগদানপত্রটি সদয় গ্রহণ পূর্বক প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য আপনাকে বিনীত অনুরোধ জানাচ্ছি।', 'I, therefore, request you to kindly accept my joining letter and take the necessary administrative actions.') }}
-    </div>
-
-    <!-- Signatures -->
-    <div style="margin-top: 60px;">
-        <table style="width: 100%;">
-            <tr>
-                <td style="width: 40%; text-align: center;">
-                    <div style="border-top: 1px solid #000; width: 180px; margin: auto;"></div>
-                    <strong>{{ $t('আবেদনকারীর স্বাক্ষর', 'Employee Signature') }}</strong>
-                </td>
-                <td style="width: 20%;"></td>
-                <td style="width: 40%; text-align: center;">
-                    <div style="border-top: 1px solid #000; width: 180px; margin: auto;"></div>
-                    <strong>{{ $t('কর্তৃপক্ষের স্বাক্ষর', 'Authorized Signature') }}</strong>
-                </td>
-            </tr>
-        </table>
-    </div>
+</div>
 
 </div>

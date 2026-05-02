@@ -20,6 +20,10 @@ Route::middleware($route['middleware'] ?? ['web'])
     ->prefix($route['prefix'] ?? 'admin/hr-center')
     ->name($route['as'] ?? 'hr-center.')
     ->group(function () {
+		// Attendance Management
+		Route::get('/attendances', [\ME\Hr\Http\Controllers\AttendanceController::class, 'index'])->name('attendances.index');
+		Route::get('/attendances/{user}/{date}/edit', [\ME\Hr\Http\Controllers\AttendanceController::class, 'edit'])->name('attendances.edit');
+		Route::post('/attendances/{user}/{date}', [\ME\Hr\Http\Controllers\AttendanceController::class, 'update'])->name('attendances.update');
 		Route::get('/', [HrDashboardController::class, 'index'])->name('dashboard');
 		Route::get('/employees', [HrEmployeeController::class, 'index'])->name('employees.index');
 		Route::post('/employees', [HrEmployeeController::class, 'store'])->name('employees.store');
@@ -47,6 +51,8 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::delete('/employees/{employee}', [HrEmployeeController::class, 'destroy'])->name('employees.destroy');
 		// Route::get('/employees/{employee}/print/{section}', [HrEmployeeController::class, 'printSection'])->name('employees.print.section');
 		Route::get('/reports/pro-job-card', [HrReportController::class, 'proJobCard'])->name('reports.pro-job-card');
+		// Individual Pay Slip Report (like Job Card)
+		Route::get('/reports/individual-pay-slip', [HrReportController::class, 'individualPaySlipReport'])->name('reports.individual-pay-slip');
 		Route::get('/reports', [HrReportController::class, 'index'])->name('reports.index');
 		Route::get('/reports/{report}', [HrReportController::class, 'show'])->name('reports.show');
 		Route::post('/reports/monthly/lock-increment', [HrReportController::class, 'lockMonthlyIncrement'])->name('reports.monthly.lock-increment');

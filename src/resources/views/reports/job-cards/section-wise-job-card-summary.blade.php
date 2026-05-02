@@ -4,16 +4,6 @@
         $isBangla = $language === 'bn';
         $t = fn (string $bn, string $en) => $isBangla ? $bn : $en;
         $bySection = $employees->groupBy('section_id');
-        $fmtOT     = fn($min) => $min > 0 ? number_format($min / 60, 2) : '0.00';
-        // AttendanceMap থেকে attendance খোঁজার হেল্পার
-        $getAtt = fn($uid, $date) => ($attendanceMap->get($uid . '_' . $date) ?? collect())->first();
-        // OT Clocking হেল্পার (factory wise logic)
-        $getOtHour = function($min, $factoryNo, $fmtOT) {
-            if ($factoryNo == null || $factoryNo == 0)       return $fmtOT($min); // actual
-            elseif ($factoryNo == 1)                         return $fmtOT(min($min, 120)); // max 2 hrs
-            elseif ($factoryNo == 2)                         return $fmtOT(min($min, 240)); // max 4 hrs
-            else                                             return $fmtOT($min); // fallback
-        };
     @endphp
 
     @forelse($bySection as $sectionId => $sectionEmps)
@@ -45,7 +35,7 @@
         </div>
         <div class="section-title">{{ $t('সেকশন', 'Section') }}: {{ $section }}</div>
 
-        <div style="overflow-x:auto;">
+        <div style="">
         <table class="t">
             <thead>
                 <tr>
@@ -66,27 +56,31 @@
                     <th>{{ $t('সাপ্তাহিক ছুটি', 'Weekend') }}</th>
                     <th>{{ $t('সরকারি ছুটি', 'Holiday') }}</th>
                     <th>{{ $t('ওটি (ঘণ্টা)', 'OT (hrs)') }}</th>
+                    @if($factoryNo == 2)
+                        <th>{{ $t('অতিরিক্ত ওটি (ঘণ্টা)', 'Extra OT (hrs)') }}</th>
+                    @endif
                     <th>{{ $t('মোট উপস্থিতি', 'Total Attendance') }}</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($sectionEmps as $employee)
+                @foreach($sectionEmps as $employee)
                     @php
-                        $employeeData = $employeeDataFn($employee, $request ?? null, $factory ?? null, $salaryKey ?? null, $profile ?? null, $nominee ?? null);
-                        $designation = $employeeData['designation'] ?? $t('প্রযোজ্য নয়', 'N/A');
-                        $section = $employeeData['section'] ?? $t('প্রযোজ্য নয়', 'N/A');
-                        $subSection = $employeeData['sub_section'] ?? $t('প্রযোজ্য ��য়', 'N/A');
-                        $line = $employeeData['line'] ?? $t('প্রযোজ্য নয়', 'N/A');
-                        $workingPlace = $employeeData['working_place'] ?? $t('প্রযোজ্য নয়', 'N/A');
-                        // summary counters
-                        $totalPresent = $totalAbsent = $totalLeave = $totalWeekend = $totalHoliday = $totalOTMin = $totalAttendance = 0;
-                        $empWeekend = strtolower($employee->otherInfo()['profile']['weekend'] ?? 'friday');
+                        $data = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate(
+                            $employee->id,
+                            $from,
+                            $to
+                        );
+
+                        $attendance = $data['attendance'];
+                        $summary = $data['summary'];
                     @endphp
+
                     <tr>
                         <td class="tc">{{ $isBangla ? en2bnNumber($loop->iteration) : $loop->iteration }}</td>
                         <td>{{ $employee->employee_id }}</td>
                         <td>{{ $employeeData['employee_name'] ?? '--' }}</td>
                         <td>{{ $designation }}</td>
+
                         <td class="tc">
                             @php
                                 $joiningDate = $employee->joining_date;
@@ -100,80 +94,27 @@
                         <td>{{ $section }}</td>
                         <td>{{ $subSection }}</td>
                         <td>{{ $workingPlace }}</td>
-                        @foreach($dates as $d)
-                            @php
-                                $dateStr = $d->format('Y-m-d');
-                                // Leave আগে চেক করুন:
-                                $leave = \ME\Hr\Models\Leave::where('employee_id', $employee->id)
-                                    ->whereDate('start_date', '<=', $dateStr)
-                                    ->whereDate('end_date',   '>=', $dateStr)
-                                    ->first();
-                                $att = $getAtt($employee->id, $dateStr);
-                                $otMinRaw = $att ? (int)($att->overtime_minutes ?? 0) : 0;
 
-                                // Holiday, weekend detection
-                                $isHoliday = $holidays->contains(function($h) use ($dateStr) {
-                                    return ($dateStr >= $h->from_date && $dateStr <= $h->to_date);
-                                });
-                                $dayOfWeek = strtolower($d->format('l'));
-                                // RegularToWeekend logic
-                                $isRegularToWeekend = \ME\Hr\Models\RegularToWeekend::where('section_id', $employee->section_id)
-                                    ->where('date', $dateStr)
-                                    ->where('type', 'weekend')
-                                    ->where('is_active', 1)
-                                    ->exists();
-                                $isWeekendToRegular = \ME\Hr\Models\RegularToWeekend::where('section_id', $employee->section_id)
-                                    ->where('date', $dateStr)
-                                    ->where('type', 'regular')
-                                    ->where('is_active', 1)
-                                    ->exists();
-                                $isWeekend = false;
-                                if ($dayOfWeek === $empWeekend && $isWeekendToRegular) {
-                                    $isWeekend = false;
-                                } elseif ($isRegularToWeekend || ($dayOfWeek === $empWeekend && !$isWeekendToRegular) || ($att && !empty($att->regular_to_weekend))) {
-                                    $isWeekend = true;
-                                }
-                                // Status/Count logic (Leave > Holiday > Weekend > Present/Absent)
-                                if ($leave) {
-                                    $totalLeave++;
-                                    $cell = $t('ছুটি', 'L');
-                                } elseif ($isHoliday) {
-                                    $totalHoliday++;
-                                    $cell = $t('সরকারি ছুটি', 'H');
-                                } elseif ($isWeekend) {
-                                    $totalWeekend++;
-                                    $cell = $t('সাপ্তাহিক ছুটি', 'W');
-                                } else {
-                                    $statusRaw = $att ? ($att->status ?: ($att->in_time ? 'P' : 'A')) : 'A';
-                                    if ($statusRaw === 'A') {
-                                        $totalAbsent++;
-                                        $cell = $t('অনুপস্থিত', 'A');
-                                    } elseif ($statusRaw === 'P' || $statusRaw == 'Present') {
-                                        $totalPresent++;
-                                        $cell = $t('উপস্থিত', 'P');
-                                    } else {
-                                        $cell = $statusRaw;
-                                    }
-                                }
-                                // OT-তে leave, holiday, weekend-এ OT নাই, শুধু present বা attendance থাকলে যোগ হবে:
-                                if (!$leave && !$isHoliday && !$isWeekend) {
-                                    $totalOTMin += ($factoryNo == 1) ? min($otMinRaw, 120) : (($factoryNo == 2) ? min($otMinRaw, 240) : $otMinRaw);
-                                    if ($att && $att->in_time) $totalAttendance++;
-                                }
-                            @endphp
-                            <td class="tc" style="font-size:9px;">{{ $cell }}</td>
+                        {{-- Daily cells --}}
+                        @foreach($attendance as $row)
+                            <td class="tc" style="font-size:9px;">
+                                {{ att_status($row['status'], $language) }}
+                            </td>
                         @endforeach
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalPresent) : $totalPresent }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalAbsent) : $totalAbsent }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalLeave) : $totalLeave }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalWeekend) : $totalWeekend }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalHoliday) : $totalHoliday }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber(number_format($totalOTMin/60,2)) : number_format($totalOTMin/60,2) }}</td>
-                        <td class="tc">{{ $isBangla ? en2bnNumber($totalAttendance) : $totalAttendance }}</td>
+
+                        {{-- Summary --}}
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalPresentAll']) : $summary['totalPresentAll'] }}</td>
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalAbsent']) : $summary['totalAbsent'] }}</td>
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalLeave']) : $summary['totalLeave'] }}</td>
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalWeekendDays']) : $summary['totalWeekendDays'] }}</td>
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalGovHolidays']) : $summary['totalGovHolidays'] }}</td>
+                        <td class="tc">{{ $isBangla ? en2bnNumber(number_format($summary['totalComplianceOt'], 2)) : number_format($summary['totalComplianceOt'], 2) }}</td>
+                        @if($factoryNo == 2)
+                            <td class="tc">{{ $isBangla ? en2bnNumber(number_format($summary['totalExtraOt'], 2)) : number_format($summary['totalExtraOt'], 2) }}</td>
+                        @endif
+                        <td class="tc">{{ $isBangla ? en2bnNumber($summary['totalAttendance']) : $summary['totalAttendance'] }}</td>
                     </tr>
-                @empty
-                    <tr><td colspan="{{ 16 + count($dates) }}" class="tc">{{ $t('কোনো তথ্য নেই।', 'No data.') }}</td></tr>
-                @endforelse
+                @endforeach
             </tbody>
         </table>
         </div>

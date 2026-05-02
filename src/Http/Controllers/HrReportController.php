@@ -2,21 +2,22 @@
 
 namespace ME\Hr\Http\Controllers;
 
+use App\Models\Attribute;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\BonusPolicy;
 use ME\Hr\Models\BonusTitle;
 use ME\Hr\Models\Designation;
+use ME\Hr\Models\EmployeeIncrement;
 use ME\Hr\Models\ProductionBonus;
 use ME\Hr\Models\Shift;
 use ME\Hr\Models\SubSection;
 use ME\Hr\Models\WorkingPlace;
-use App\Models\Attribute;
 
 
 
@@ -153,6 +154,10 @@ class HrReportController extends Controller
 
         if ($report === 'salary-report') {
             return $this->salaryReportScreen($request, $report);
+        }
+
+        if( $report === 'pay-slip') {
+            return $this->paySlipReportScreen($request, $report);
         }
 
         [$columns, $rows] = match ($report) {
@@ -1432,7 +1437,7 @@ class HrReportController extends Controller
 
         DB::transaction(function () use ($employees, $from, $to) {
             foreach ($employees as $employee) {
-                $other = $employee->others_information ; 
+                $other = $employee->others_information ;
                 $other = is_array($other) ? $other : [];
                 $lockKey = 'job_card_lock';
                 if (!isset($other[$lockKey])) {
@@ -1752,6 +1757,108 @@ class HrReportController extends Controller
             'reportTypes'  => $reportTypes,
             'paymentModes' => $paymentModes,
             'request'      => $request,
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // PAY SLIP REPORT
+    // ──────────────────────────────────────────────────────────────────
+
+    private function paySlipReportScreen(Request $request, $report)
+    {
+        $options = $this->employeeReportOptions();
+        $reportTypes = [
+            'salary'   => 'Salary',
+            'extra_ot' => 'Extra OT',
+        ];
+        $languages = [
+            'bn' => 'Bangla',
+            'en' => 'English',
+        ];
+        $currentYear = now()->year;
+        $years = range($currentYear - 5, $currentYear + 1);
+        $months = [
+            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June',
+            7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+        ];
+
+
+        if ($request->boolean('print')) {
+            $month = (int) $request->input('month', now()->month);
+            $year = (int) $request->input('year', $currentYear);
+            $from = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
+            $to = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            // Salary/OT logic will go here (to be implemented)
+
+            $monthLabel = $months[$month] ?? '';
+
+            return view('hr::reports.payslip.pay-slip-print', compact(
+                'request', 'employees', 'from', 'to', 'month', 'year', 'monthLabel', 'reportTypes', 'languages', 'options', 'months', 'years'
+            ));
+        }
+
+        return view('hr::reports.payslip.pay-slip', [
+            'options'     => $options,
+            'reportTypes' => $reportTypes,
+            'languages'   => $languages,
+            'months'      => $months,
+            'years'       => $years,
+            'request'     => $request,
+        ]);
+    }
+
+        /**
+     * Individual Pay Slip Report (like Job Card)
+     */
+    public function individualPaySlipReport(Request $request)
+    {
+        $options = $this->employeeReportOptions();
+        $reportTypes = [
+            'salary'   => 'Salary',
+            'extra_ot' => 'Extra OT',
+        ];
+        $languages = [
+            'bn' => 'Bangla',
+            'en' => 'English',
+        ];
+        $currentYear = now()->year;
+        $years = range($currentYear - 5, $currentYear + 1);
+        $months = [
+            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June',
+            7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+        ];
+
+        if ($request->boolean('print')) {
+            $month = (int) $request->input('month', now()->month);
+            $year = (int) $request->input('year', $currentYear);
+            $from = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
+            $to = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            // Salary/OT logic will go here (to be implemented)
+
+            return view('hr::reports.payslip.pay-slip-print', compact(
+                'request', 'employees', 'from', 'to', 'month', 'year', 'reportTypes', 'languages', 'options', 'months', 'years'
+            ));
+        }
+
+        return view('hr::reports.payslip.pay-slip', [
+            'options'     => $options,
+            'reportTypes' => $reportTypes,
+            'languages'   => $languages,
+            'months'      => $months,
+            'years'       => $years,
+            'request'     => $request,
         ]);
     }
 }

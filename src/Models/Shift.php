@@ -6,6 +6,12 @@ use ME\Hr\Models\BaseHrModel;
 
 class Shift extends BaseHrModel
 {
+
+    //shift_starting_time
+    //shift_closing_time
+    //card_accept_from = Start Allow Time
+    //red_marking_on = Late Allow Time
+    //card_accept_to = Out Time Start
     protected $table = 'hr_shifts';
 
     protected $casts = [

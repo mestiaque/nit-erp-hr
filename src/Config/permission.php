@@ -95,6 +95,10 @@ return [
             'label' => 'Employee',
             'permissions' => [ 'list' => 'List', 'add' => 'Create', 'edit' => 'Edit', 'view' => 'View', 'delete' => 'Delete', 'all' => 'All' ],
         ],
+        'hr_attendance' => [
+            'label' => 'Attendance',
+            'permissions' => [ 'list' => 'List', 'add' => 'Create', 'edit' => 'Edit', 'view' => 'View', 'delete' => 'Delete', 'all' => 'All' ],
+        ],
         'hr_factory_holiday' => [
             'label' => 'Factory Holiday',
             'permissions' => [ 'list' => 'List', 'add' => 'Create', 'edit' => 'Edit', 'view' => 'View', 'delete' => 'Delete', 'all' => 'All' ],

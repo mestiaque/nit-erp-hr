@@ -76,7 +76,8 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-6 mb-2"><label class="mb-1">Child</label><input type="number" name="boys" value="{{ old('boys', $employee->boys) }}" class="form-control form-control-sm" min="0"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Boys</label><input type="number" name="boys" value="{{ old('boys', $employee->boys) }}" class="form-control form-control-sm" min="0"></div>
+    <div class="col-md-6 mb-2"><label class="mb-1">Girls</label><input type="number" name="girls" value="{{ old('girls', $employee->girls) }}" class="form-control form-control-sm" min="0"></div>
     <div class="col-md-6 mb-2">
         <label class="mb-1">Payment Mode</label>
         <select name="salary_type" class="form-control form-control-sm">
