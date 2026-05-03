@@ -128,7 +128,7 @@
 
 
     <div class="title">যোগদান পত্র (Joining Letter)</div>
-    <div class="card-no-box">কার্ড নং: <span class="input-line"></span></div>
+    <div class="card-no-box">কার্ড নং: <span class="input-line">{{ $employeeId }}</span></div>
 
     <div class="address-section">
         বরাবর,<br>

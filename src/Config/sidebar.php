@@ -206,7 +206,7 @@ return [
                     'permission' => 'hr_factory_holiday',
                 ],
                 [
-                    'title'      => 'Regular to Weekend',
+                    'title'      => 'Weekend to Regular',
                     'icon'       => 'fa-solid fa-arrow-right',
                     'route'      => '/admin/hr-center/regular-to-weekend',
                     'icon_color' => 'text-warning',
@@ -246,13 +246,13 @@ return [
                             'icon_color' => 'text-warning',
                             'permission' => 'hr_personal_file_report',
                         ],
-                        [
-                            'title'      => 'Attendance',
-                            'icon'       => 'fa-solid fa-arrow-right',
-                            'route'      => '/admin/hr-center/reports/attendance',
-                            'icon_color' => 'text-warning',
-                            'permission' => 'hr_attendance_report',
-                        ],
+                        // [
+                        //     'title'      => 'Attendance',
+                        //     'icon'       => 'fa-solid fa-arrow-right',
+                        //     'route'      => '/admin/hr-center/reports/attendance',
+                        //     'icon_color' => 'text-warning',
+                        //     'permission' => 'hr_attendance_report',
+                        // ],
                         [
                             'title'      => 'Job Card Report',
                             'icon'       => 'fa-solid fa-arrow-right',

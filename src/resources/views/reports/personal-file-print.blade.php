@@ -240,7 +240,7 @@
         $resign = data_get($other, 'resign_info', []);
         $increment = $increments[$employee->id] ?? null;
         $incrementAmount = data_get($increment, 'gross_increment_amount', data_get($increment, 'amount', 'N/A'));
-        $incrementDate = data_get($increment, 'increment_date', data_get($increment, 'date', 'N/A'));
+        $incrementDate = data_get($increment, 'increment_date', data_get($increment, 'date', ''));
         $basicSalary = (float) ($employee->basic_salary ?? 0);
         $houseRent = (float) ($employee->house_rent ?? 0);
         $medicalAllowance = (float) ($employee->medical_allowance ?? 0);

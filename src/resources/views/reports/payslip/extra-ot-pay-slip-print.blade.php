@@ -22,89 +22,89 @@
     @endphp
 
     <div class="containerX">
-        <!-- Office Copy -->
-        <div class="slip-half ">
-            <div class="copy-tag">অফিস কপি</div>
-            <div class="header">
-                <h2>{{ $employeeData['company_name'] ?? '' }}</h2>
-                <p>{{ $employeeData['company_address'] ?? '' }}</p>
-                <p style="margin: 0; font-size: 11px;">অতিরিক্ত ওটি স্লিপ ({{ $monthLabel ?? '' }})</p>
-            </div>
 
-            <div class="section-info">
-                <div>
-                    <strong>সেকশন: {{ $employeeData['section'] ?? '-' }}</strong><br>
-                    <strong>কার্ড নং: {{ $employee->employee_id }}</strong><br>
-                    <strong>নাম: {{ $employeeData['employee_name'] ?? $employee->name }}</strong>
+        <table class="main-table">
+            <td class="main-table-td">
+                <div class="copy-tag">অফিস কপি</div>
+                <div class="header">
+                    <h2>{{ $employeeData['company_name'] ?? '' }}</h2>
+                    <p>{{ $employeeData['company_address'] ?? '' }}</p>
+                    <p style="margin: 0; font-size: 11px;">অতিরিক্ত ওটি স্লিপ ({{ $monthLabel ?? '' }})</p>
                 </div>
-                <div style="text-align: right;">
-                    <strong>ব্লক নং - {{ $employeeData['line'] ?? '-' }}</strong><br>
-                    হাজিরা বোনাস {{ $salary['attendance_bonus'] ?? 0 }}<br>
-                    পদবী: {{ $employeeData['designation'] ?? '-' }}
+
+                <div class="section-info">
+                    <div>
+                        <strong>সেকশন: {{ $employeeData['section'] ?? '-' }}</strong><br>
+                        <strong>কার্ড নং: {{ $employee->employee_id }}</strong><br>
+                        <strong>নাম: {{ $employeeData['employee_name'] ?? $employee->name }}</strong>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>ব্লক নং - {{ $employeeData['line'] ?? '-' }}</strong><br>
+                        হাজিরা বোনাস {{ $salary['attendance_bonus'] ?? 0 }}<br>
+                        পদবী: {{ $employeeData['designation'] ?? '-' }}
+                    </div>
                 </div>
-            </div>
 
-            <table class="ot-table">
-                <tr>
-                    <td>এক্সট্রা ওটি ঘণ্টা</td>
-                    <td style="text-align: right;">{{ en2bnNumber($extraOtHour) }} ঘণ্টা</td>
-                </tr>
-                <tr>
-                    <td>ওটি রেট (প্রতি ঘণ্টা)</td>
-                    <td style="text-align: right;">{{ en2bnNumber($otRate) }} টাকা</td>
-                </tr>
-            </table>
+                <table class="ot-table">
+                    <tr>
+                        <td>এক্সট্রা ওটি ঘণ্টা</td>
+                        <td style="text-align: right;">{{ en2bnNumber($extraOtHour) }} ঘণ্টা</td>
+                    </tr>
+                    <tr>
+                        <td>ওটি রেট (প্রতি ঘণ্টা)</td>
+                        <td style="text-align: right;">{{ en2bnNumber($otRate) }} টাকা</td>
+                    </tr>
+                    <tr>
+                        <td>মোট:</td>
+                        <td style="text-align: right;">{{ en2bnNumber($extraOtAmount) }} টাকা</td>
+                    </tr>
+                </table>
 
-            <div class="total-box">
-                মোট টাকা: {{ en2bnNumber($extraOtAmount) }}
-            </div>
-
-            <div class="footer">
-                <div class="signature">সাক্ষর</div>
-            </div>
-        </div>
-
-        <!-- Worker Copy -->
-        <div class="slip-half">
-            <div class="copy-tag">শ্রমিক কপি</div>
-            <div class="header">
-                <h2>{{ $employeeData['company_name'] ?? '' }}</h2>
-                <p>{{ $employeeData['company_address'] ?? '' }}</p>
-                <p style="margin: 0; font-size: 11px;">অতিরিক্ত ওটি স্লিপ ({{ $monthLabel ?? '' }})</p>
-            </div>
-
-            <div class="section-info">
-                <div>
-                    <strong>সেকশন: {{ $employeeData['section'] ?? '-' }}</strong><br>
-                    <strong>কার্ড নং: {{ $employee->employee_id }}</strong><br>
-                    <strong>নাম: {{ $employeeData['employee_name'] ?? $employee->name }}</strong>
+                <div class="footer">
+                    <div class="signature">সাক্ষর</div>
                 </div>
-                <div style="text-align: right;">
-                    <strong>ব্লক নং - {{ $employeeData['line'] ?? '-' }}</strong><br>
-                    হাজিরা বোনাস {{ $salary['attendance_bonus'] ?? 0 }}<br>
-                    পদবী: {{ $employeeData['designation'] ?? '-' }}
+            </td>
+            <td class="main-table-td">
+                <div class="copy-tag">শ্রমিক কপি</div>
+                <div class="header">
+                    <h2>{{ $employeeData['company_name'] ?? '' }}</h2>
+                    <p>{{ $employeeData['company_address'] ?? '' }}</p>
+                    <p style="margin: 0; font-size: 11px;">অতিরিক্ত ওটি স্লিপ ({{ $monthLabel ?? '' }})</p>
                 </div>
-            </div>
 
-            <table class="ot-table">
-                <tr>
-                    <td>এক্সট্রা ওটি ঘণ্টা</td>
-                    <td style="text-align: right;">{{ en2bnNumber($extraOtHour) }} ঘণ্টা</td>
-                </tr>
-                <tr>
-                    <td>ওটি রেট (প্রতি ঘণ্টা)</td>
-                    <td style="text-align: right;">{{ en2bnNumber($otRate) }} টাকা</td>
-                </tr>
-            </table>
+                <div class="section-info">
+                    <div>
+                        <strong>সেকশন: {{ $employeeData['section'] ?? '-' }}</strong><br>
+                        <strong>কার্ড নং: {{ $employee->employee_id }}</strong><br>
+                        <strong>নাম: {{ $employeeData['employee_name'] ?? $employee->name }}</strong>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>ব্লক নং - {{ $employeeData['line'] ?? '-' }}</strong><br>
+                        হাজিরা বোনাস {{ $salary['attendance_bonus'] ?? 0 }}<br>
+                        পদবী: {{ $employeeData['designation'] ?? '-' }}
+                    </div>
+                </div>
 
-            <div class="total-box">
-                মোট টাকা: {{ en2bnNumber($extraOtAmount) }}
-            </div>
+                <table class="ot-table">
+                    <tr>
+                        <td>এক্সট্রা ওটি ঘণ্টা</td>
+                        <td style="text-align: right;">{{ en2bnNumber($extraOtHour) }} ঘণ্টা</td>
+                    </tr>
+                    <tr>
+                        <td>ওটি রেট (প্রতি ঘণ্টা)</td>
+                        <td style="text-align: right;">{{ en2bnNumber($otRate) }} টাকা</td>
+                    </tr>
+                    <tr>
+                        <td>মোট:</td>
+                        <td style="text-align: right;">{{ en2bnNumber($extraOtAmount) }} টাকা</td>
+                    </tr>
+                </table>
+                <div class="footer">
+                    <div class="signature">সাক্ষর</div>
+                </div>
+            </td>
+        </table>
 
-            <div class="footer">
-                <div class="signature">সাক্ষর</div>
-            </div>
-        </div>
     </div>
 @endforeach
     <style>
@@ -115,22 +115,9 @@
         }
 
         .containerX {
+            width: 800px;
             margin: 0 auto;
-            padding: 10px;
-            border: 1px solid #ccc;
-            display: flex;
-            justify-content: space-between;
-            position: relative;
-        }
-
-        /* মাঝখানের ড্যাশ লাইন */
-        .containerX::before {
-            content: "";
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            border-left: 1px dashed #000;
+            margin: 0 auto;
         }
 
         .slip-half {
@@ -140,13 +127,17 @@
 
         .header {
             text-align: center;
-            border-bottom: 2px solid #000;
-            margin-bottom: 5px;
-            padding-bottom: 5px;
+            /* border-bottom: 2px solid #000; */
+            margin-bottom: 0px;
+            padding-bottom: 0px;
+        }
+        .header p{
+            margin: 0;
+            font-size: 10px;
         }
 
-        .header h2 { margin: 0; font-size: 16px; }
-        .copy-tag { text-align: right; font-weight: bold; font-size: 12px; margin-bottom: 5px; position: absolute; right: 0; top: 2.7rem; }
+        .header h2 { margin: 0; font-size: 14px; }
+        .copy-tag { text-align: right; font-weight: bold; font-size: 12px; margin-bottom: 5px; position: absolute; right: 0.5rem; top: 0.5rem; }
 
         .section-info {
             display: flex;
@@ -154,6 +145,7 @@
             border-bottom: 1px solid #000;
             padding-bottom: 5px;
             margin-bottom: 5px;
+            font-size: 9px;
         }
 
         .ot-table {
@@ -163,9 +155,10 @@
         }
 
         .ot-table td {
-            padding: 5px;
+            padding: 1px;
             border: 1px solid #ddd;
-            font-size: 11px;
+            font-size: 9px;
+            color: #000 !important;
         }
 
         .total-box {
@@ -189,5 +182,13 @@
             text-align: center;
             font-size: 12px;
             float: right;
+        }
+        .main-table{
+            margin-bottom: 0px;
+        }
+        .main-table-td{
+            border-bottom: none;
+            border: 2px dashed rgb(0, 0, 0) !important;
+            position: relative;
         }
     </style>

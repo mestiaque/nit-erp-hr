@@ -162,6 +162,7 @@ class HrEmployeeController extends Controller
         $employee = new User();
         $employee->fill($payload);
         $this->applyExtendedProfileFields($employee, $payload);
+        $this->syncDesignationSalaryToEmployee($employee, $payload, true);
         $employee->addedby_id = Auth::id();
         $employee->password = bcrypt('123456');
         $employee->password_show = '123456';
@@ -197,8 +198,11 @@ class HrEmployeeController extends Controller
         ]);
         $payload['status'] = $this->normalizeUserStatus((string) $payload['status']);
 
+        $previousDesignationId = (int) ($employee->designation_id ?? 0);
         $employee->fill($payload);
         $this->applyExtendedProfileFields($employee, $payload);
+        $designationChanged = $previousDesignationId !== (int) ($payload['designation_id'] ?? 0);
+        $this->syncDesignationSalaryToEmployee($employee, $payload, $designationChanged);
         $employee->setTypes('employee');
         $employee->save();
 
@@ -715,7 +719,7 @@ class HrEmployeeController extends Controller
     public function incrementsUpdate(Request $request, User $employee): RedirectResponse
     {
         $this->ensureEmployee($employee);
-        
+
         $payload = $request->validate([
             'identifier' => 'required|integer|exists:employee_increments,id',
             'increment_date' => 'required|date',
@@ -1336,5 +1340,66 @@ class HrEmployeeController extends Controller
             $workingPlace = WorkingPlace::query()->find($payload['working_place_id']);
             $employee->location = $workingPlace?->name;
         }
+    }
+
+    private function syncDesignationSalaryToEmployee(User $employee, array $payload, bool $force = false): void
+    {
+        $designationId = (int) ($payload['designation_id'] ?? $employee->designation_id ?? 0);
+        if ($designationId <= 0) {
+            return;
+        }
+
+        $designation = Designation::query()->find($designationId);
+        if (!$designation) {
+            return;
+        }
+
+        $other = $this->otherInfo($employee);
+        $salaryInfo = data_get($other, 'salary_info', []);
+
+        $setIfEmpty = static function ($current, $incoming) use ($force) {
+            if ($force) {
+                return $incoming;
+            }
+            if ($incoming === null || $incoming === '') {
+                return $current;
+            }
+            if ($current === null || $current === '' || (is_numeric($current) && (float) $current <= 0)) {
+                return $incoming;
+            }
+
+            return $current;
+        };
+
+        $employee->gross_salary = $setIfEmpty($employee->gross_salary, data_get($designation, 'gross_salary'));
+        $salaryInfo['gross_salary_comp_1'] = $setIfEmpty(
+            data_get($salaryInfo, 'gross_salary_comp_1'),
+            data_get($designation, 'gross_salary')
+        );
+        $salaryInfo['gross_salary_comp_2'] = $setIfEmpty(
+            data_get($salaryInfo, 'gross_salary_comp_2'),
+            data_get($designation, 'gross_salary')
+        );
+
+        $salaryInfo['car_fuel'] = $setIfEmpty(data_get($salaryInfo, 'car_fuel'), data_get($designation, 'car_fuel'));
+        $salaryInfo['phone_internet'] = $setIfEmpty(data_get($salaryInfo, 'phone_internet'), data_get($designation, 'phone_internet'));
+        $salaryInfo['extra_facility'] = $setIfEmpty(data_get($salaryInfo, 'extra_facility'), data_get($designation, 'extra_facility'));
+
+        $salaryInfo['attendance_bonus'] = $setIfEmpty(data_get($salaryInfo, 'attendance_bonus'), data_get($designation, 'attendance_bonus'));
+        $salaryInfo['attendance_bonus_com'] = $setIfEmpty(data_get($salaryInfo, 'attendance_bonus_com'), data_get($designation, 'attendance_bonus_com'));
+
+        $salaryInfo['tiffin_allowance'] = $setIfEmpty(data_get($salaryInfo, 'tiffin_allowance'), data_get($designation, 'tiffin_allowance'));
+        $salaryInfo['night_allowance'] = $setIfEmpty(data_get($salaryInfo, 'night_allowance'), data_get($designation, 'night_allowance'));
+        $salaryInfo['dinner_allowance'] = $setIfEmpty(data_get($salaryInfo, 'dinner_allowance'), data_get($designation, 'dinner_allowance'));
+        $salaryInfo['minimum_tiffin_hour'] = $setIfEmpty(data_get($salaryInfo, 'minimum_tiffin_hour'), data_get($designation, 'minimum_tiffin_hour'));
+        $salaryInfo['minimum_night_hour'] = $setIfEmpty(data_get($salaryInfo, 'minimum_night_hour'), data_get($designation, 'minimum_night_hour'));
+        $salaryInfo['minimum_dinner_hour'] = $setIfEmpty(data_get($salaryInfo, 'minimum_dinner_hour'), data_get($designation, 'minimum_dinner_hour'));
+
+        $salaryInfo['meal_payment_way'] = $setIfEmpty(data_get($salaryInfo, 'meal_payment_way'), data_get($designation, 'meal_payment_way'));
+        $salaryInfo['weekend_allowance_count'] = $setIfEmpty(data_get($salaryInfo, 'weekend_allowance_count'), data_get($designation, 'weekend_allowance_count'));
+        $salaryInfo['holiday_allowance'] = $setIfEmpty(data_get($salaryInfo, 'holiday_allowance'), data_get($designation, 'holiday_allowance'));
+
+        $other['salary_info'] = $salaryInfo;
+        $employee->other_information = json_encode($other);
     }
 }

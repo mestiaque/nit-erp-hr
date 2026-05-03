@@ -1473,30 +1473,75 @@ class HrReportController extends Controller
         ];
 
         if ($request->boolean('print')) {
-            $date = $request->input('date') ?: now()->toDateString();
+            $from = $request->input('from') ?: now()->startOfMonth()->toDateString();
+            $to   = $request->input('to')   ?: now()->toDateString();
 
             $employees = $this->employeeReportQuery($request)
                 ->orderBy('section_id')
                 ->orderBy('name')
                 ->get();
 
-            $attendanceMap = \ME\Hr\Models\Attendance::query()
-                ->whereIn('user_id', $employees->pluck('id'))
-                ->whereDate('date', $date)
-                ->get()
-                ->keyBy('user_id');
+            // Build per-employee summary over the date range
+            $attendanceByEmployee = $employees->mapWithKeys(function ($employee) use ($from, $to) {
+                $pack    = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate($employee->id, $from, $to);
+                $summary = $pack['summary'] ?? [];
+
+                $presentStatuses = ['present', 'late', 'early_exit', 'punch_missing', 'late_and_early_exit', 'late_and_punch_missing'];
+                $presentCount = ($summary['totalPresent'] ?? 0)
+                    + ($summary['totalLate'] ?? 0)
+                    + ($summary['totalEO'] ?? 0)
+                    + ($summary['totalPM'] ?? 0)
+                    + ($summary['totalLEO'] ?? 0)
+                    + ($summary['totalLPM'] ?? 0);
+
+                return [$employee->id => [
+                    'present'  => $presentCount,
+                    'absent'   => $summary['totalAbsent'] ?? 0,
+                    'late'     => ($summary['totalLate'] ?? 0)
+                                + ($summary['totalLEO'] ?? 0)
+                                + ($summary['totalLPM'] ?? 0),
+                    'leave'    => $summary['totalLeave'] ?? 0,
+                    'weekend'  => $summary['totalWeekendDays'] ?? 0,
+                    'holiday'  => $summary['totalGovHolidays'] ?? 0,
+                    'ot_hours' => round($summary['totalComplianceOt'] ?? 0, 2),
+                ]];
+            });
+
+            if ($request->filled('att_type')) {
+                $type = strtoupper((string) $request->input('att_type'));
+                $employees = $employees->filter(function ($employee) use ($attendanceByEmployee, $type) {
+                    $row     = $attendanceByEmployee->get($employee->id, []);
+                    $present = $row['present'] ?? 0;
+                    $absent  = $row['absent'] ?? 0;
+                    $leave   = $row['leave'] ?? 0;
+                    $holiday = $row['holiday'] ?? 0;
+                    $weekend = $row['weekend'] ?? 0;
+                    $ot      = $row['ot_hours'] ?? 0;
+
+                    return match ($type) {
+                        'P'  => $present > 0,
+                        'A'  => $absent > 0,
+                        'L'  => $leave > 0,
+                        'H'  => $holiday > 0,
+                        'W'  => $weekend > 0,
+                        'OT' => $ot > 0,
+                        default => true,
+                    };
+                })->values();
+            }
 
             $sectionMap     = collect($options['sections'])->pluck('name', 'id');
             $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
-            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            // designation_id on users references hr_designations table
+            $designationMap = Designation::query()->pluck('name', 'id');
             $shiftMap       = Shift::query()->pluck('name_of_shift', 'id');
 
+            $dateLabel = \Carbon\Carbon::parse($from)->format('d-M-Y') . ' to ' . \Carbon\Carbon::parse($to)->format('d-M-Y');
+
             return view('hr::reports.attendance-report-print', compact(
-                'request', 'employees', 'attendanceMap', 'date',
-                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap'
-            ) + [
-                'dateLabel' => \Carbon\Carbon::parse($date)->format('d-M-Y'),
-            ]);
+                'request', 'employees', 'from', 'to',
+                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap', 'attendanceByEmployee', 'dateLabel'
+            ));
         }
 
         return view('hr::reports.attendance-report', [
@@ -1548,6 +1593,7 @@ class HrReportController extends Controller
             $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
             $designationMap = collect($options['designations'])->pluck('name', 'id');
             $shiftMap       = Shift::query()->pluck('name_of_shift', 'id');
+            $designationInfoMap = Designation::query()->get()->keyBy('id');
 
             // Meal eligibility: check shift meal options
             $shifts = Shift::query()->get()->keyBy('id');
@@ -1555,7 +1601,7 @@ class HrReportController extends Controller
             return view('hr::reports.meal-report-print', compact(
                 'request', 'employees', 'attendanceMap', 'date',
                 'mealType', 'reportType', 'mealTypes', 'reportTypes',
-                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap', 'shifts'
+                'sectionMap', 'subSectionMap', 'designationMap', 'shiftMap', 'shifts', 'designationInfoMap'
             ) + [
                 'dateLabel'     => \Carbon\Carbon::parse($date)->format('d-M-Y'),
                 'mealTypeLabel' => $mealTypes[$mealType],
@@ -1605,7 +1651,7 @@ class HrReportController extends Controller
             $departmentMap  = collect($options['departments'])->pluck('name', 'id');
             $sectionMap     = collect($options['sections'])->pluck('name', 'id');
             $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
-            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $designationMap = Designation::query()->pluck('name', 'id');
             $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
                 $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
             ]);
@@ -1625,7 +1671,14 @@ class HrReportController extends Controller
                     ->get()
                     ->groupBy('user_id');
 
-                $workingDays = \Carbon\Carbon::parse($monthStart)->diffInWeekdays(\Carbon\Carbon::parse($upToDate)) + 1;
+                // Working days = calendar days in range minus Fridays (default weekend)
+                $empWeekend = strtolower(hr_factory('weekend') ?? 'friday');
+                $workingDays = 0;
+                for ($d = \Carbon\Carbon::parse($monthStart); $d->lte(\Carbon\Carbon::parse($upToDate)); $d->addDay()) {
+                    if (strtolower($d->format('l')) !== $empWeekend) {
+                        $workingDays++;
+                    }
+                }
 
                 foreach ($employees as $emp) {
                     $empAtts = $atts->get($emp->id, collect());
@@ -1716,7 +1769,7 @@ class HrReportController extends Controller
             $departmentMap  = collect($options['departments'])->pluck('name', 'id');
             $sectionMap     = collect($options['sections'])->pluck('name', 'id');
             $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
-            $designationMap = collect($options['designations'])->pluck('name', 'id');
+            $designationMap = Designation::query()->pluck('name', 'id');
             $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
                 $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
             ]);

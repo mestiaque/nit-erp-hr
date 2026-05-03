@@ -111,8 +111,8 @@
                         <label class="mb-1">Designation</label>
                         <select name="designation" class="form-control form-control-sm">
                             <option value="">All</option>
-                            @foreach($designationMap as $name => $id)
-                                <option value="{{ $id }}" @selected((string)$request->designation === (string)$id)>{{ $name }}</option>
+                            @foreach(\ME\Hr\Models\Designation::orderBy('name')->get(['id','name']) as $item)
+                                <option value="{{ $item->id }}" @selected((string)$request->designation === (string)$item->id)>{{ $item->name }}</option>
                             @endforeach
                         </select>
                     </div>

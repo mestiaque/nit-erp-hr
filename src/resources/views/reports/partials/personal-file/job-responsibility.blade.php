@@ -44,7 +44,7 @@
     font-weight: 600;
     width: 180px;
 }
-.respons ol {
+.respons ol, .respons ul {
     padding-left: 15px;
 }
 </style>

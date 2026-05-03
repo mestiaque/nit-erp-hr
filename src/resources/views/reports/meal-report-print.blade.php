@@ -40,6 +40,19 @@
         $workedMin = (int)($att->in_minutes ?? 0);
         return $minHours <= 0 || $workedMin >= ($minHours * 60);
     };
+
+    $allowanceKey = match($mealType) {
+        'tiffin' => 'tiffin_allowance',
+        'dinner' => 'dinner_allowance',
+        'night'  => 'night_allowance',
+        default  => 'tiffin_allowance',
+    };
+
+    $mealAmount = function($employee, $eligible) use ($designationInfoMap, $allowanceKey) {
+        if (!$eligible) return 0;
+        $designation = $designationInfoMap->get($employee->designation_id);
+        return (float) data_get($designation, $allowanceKey, 0);
+    };
 @endphp
 
 <div class="report-head">
@@ -68,17 +81,19 @@
                     <th>Shift</th>
                     <th>In Time</th>
                     <th>Work Min</th>
-                    <th>{{ $mealTypeLabel }}</th>
+                    <th>{{ $mealTypeLabel }} Amount</th>
                     <th>Remarks</th>
                 </tr>
             </thead>
             <tbody>
-                @php $sl = 1; $total = 0; @endphp
+                @php $sl = 1; $totalCount = 0; $totalAmount = 0; @endphp
                 @foreach($sectionEmps as $employee)
                     @php
                         $att = $attendanceMap->get($employee->id);
                         $eligible = $qualifies($employee, $att);
-                        if ($eligible) $total++;
+                        $amount = $mealAmount($employee, $eligible);
+                        if ($eligible) $totalCount++;
+                        $totalAmount += $amount;
                     @endphp
                     <tr>
                         <td class="tc">{{ $sl++ }}</td>
@@ -89,13 +104,14 @@
                         <td class="tc">{{ $shiftMap->get($employee->shift_id, '-') }}</td>
                         <td class="tc">{{ $att && $att->in_time ? \Carbon\Carbon::parse($att->in_time)->format('h:i A') : '-' }}</td>
                         <td class="tc">{{ $att ? (int)($att->in_minutes ?? 0) : '-' }}</td>
-                        <td class="tc">{{ $eligible ? '✓' : '' }}</td>
+                        <td class="tc">{{ $eligible ? number_format($amount, 2) : '0.00' }}</td>
                         <td></td>
                     </tr>
                 @endforeach
                 <tr class="summary-row">
-                    <td colspan="8" class="tr">Total {{ $mealTypeLabel }} Count:</td>
-                    <td class="tc">{{ $total }}</td>
+                    <td colspan="7" class="tr">Total {{ $mealTypeLabel }} Count:</td>
+                    <td class="tc">{{ $totalCount }}</td>
+                    <td class="tc">{{ number_format($totalAmount, 2) }}</td>
                     <td></td>
                 </tr>
             </tbody>
@@ -114,6 +130,7 @@
                 <th>Total Employees</th>
                 <th>Present</th>
                 <th>{{ $mealTypeLabel }} Count</th>
+                <th>{{ $mealTypeLabel }} Amount</th>
             </tr>
         </thead>
         <tbody>
@@ -128,11 +145,15 @@
                     @php
                         $subPresent   = 0;
                         $subMealCount = 0;
+                        $subMealAmount = 0;
                         foreach($subEmps as $emp) {
                             $att = $attendanceMap->get($emp->id);
                             if ($att && $att->in_time) {
                                 $subPresent++;
-                                if ($qualifies($emp, $att)) $subMealCount++;
+                                if ($qualifies($emp, $att)) {
+                                    $subMealCount++;
+                                    $subMealAmount += $mealAmount($emp, true);
+                                }
                             }
                         }
                         $present   += $subPresent;
@@ -145,10 +166,11 @@
                         <td class="tc">{{ $subEmps->count() }}</td>
                         <td class="tc">{{ $subPresent }}</td>
                         <td class="tc">{{ $subMealCount }}</td>
+                        <td class="tc">{{ number_format($subMealAmount, 2) }}</td>
                     </tr>
                 @endforeach
             @empty
-                <tr><td colspan="6" class="tc">No data.</td></tr>
+                <tr><td colspan="7" class="tc">No data.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -24,115 +24,69 @@
     $address = general()->address_one ?? '';
     $fmt     = fn($v) => number_format((float)$v, 2);
     $byDept  = $employees->groupBy('department_id');
+    $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
 
     // Use central HR options service for all lookups
     $hrOptions = \App\Services\HrOptionsService::getOptions();
     $departmentMap = collect($hrOptions['departments'])->pluck('name', 'id');
     $sectionMap = collect($hrOptions['sections'])->pluck('name', 'id');
     $subSectionMap = collect($hrOptions['subSections'])->pluck('name', 'id');
-    $designationMap = collect($hrOptions['designations'])->pluck('name', 'id');
+    $designationMap = \ME\Hr\Models\Designation::query()->pluck('name', 'id');
 
-    $empExtras = function($emp) use ($from, $to) {
-        $other   = json_decode($emp->other_information ?? '{}', true);
-        $entries = data_get($other, 'earnings_deductions', []);
-        $earnings    = 0.0;
-        $deductions  = 0.0;
-        $advanceIou  = 0.0;
-        $otPlusHours = 0.0;
-        $otMinusHours = 0.0;
-        $dayPlus     = 0.0;
-        $dayMinus    = 0.0;
-
-        foreach ($entries as $entry) {
-            $date = data_get($entry, 'date');
-            if ($date && $date >= $from && $date <= $to) {
-                $earnings   += (float) data_get($entry, 'earnings',    0);
-                $deductions += (float) data_get($entry, 'deductions',  0);
-                $advanceIou += (float) data_get($entry, 'advance_iou', 0);
-                $otHours = (float) data_get($entry, 'ot', 0);
-                if ($otHours >= 0) {
-                    $otPlusHours += $otHours;
-                } else {
-                    $otMinusHours += abs($otHours);
-                }
-
-                $days = (float) data_get($entry, 'day', 0);
-                if ($days >= 0) {
-                    $dayPlus += $days;
-                } else {
-                    $dayMinus += abs($days);
-                }
-            }
-        }
-        return compact('earnings', 'deductions', 'advanceIou', 'otPlusHours', 'otMinusHours', 'dayPlus', 'dayMinus');
-    };
-
-    // Helper: aggregate salary sheets for an employee; falls back to profile salary when no sheets exist
-    $empSalary = function($userId, $emp = null) use ($salarySheets, $empExtras) {
+    // Helper: use same earnings/deductions + OT adjustment logic as payslip
+    $empSalary = function($userId, $emp = null) use ($salarySheets, $employeeDataFn, $request, $from, $to) {
         $sheets = $salarySheets->get($userId, collect());
-        $sal      = $emp ? hr_employee_salary($emp) : [];
-        $extras   = $emp ? $empExtras($emp) : [
-            'earnings' => 0, 'deductions' => 0, 'advanceIou' => 0,
-            'otPlusHours' => 0, 'otMinusHours' => 0, 'dayPlus' => 0, 'dayMinus' => 0,
-        ];
-
-        $otRate = (float) ($sal['ot_rate'] ?? 0);
-
-        if ($sheets->isNotEmpty()) {
-            $gross = (float) $sheets->sum('gross_salary');
-            $basic = (float) $sheets->sum('basic_salary');
-            $deductFrom = (string) ($sal['deduct_from'] ?? 'gross');
-            $dayBase = $deductFrom === 'basic' ? $basic : $gross;
-            $dayRate = $dayBase > 0 ? ($dayBase / 30) : 0;
-
-            $otEarn   = $extras['otPlusHours'] * $otRate;
-            $otDeduct = $extras['otMinusHours'] * $otRate;
-            $dayEarn  = $extras['dayPlus'] * $dayRate;
-            $dayDeduct = $extras['dayMinus'] * $dayRate;
-
-            $extraEarningAmount = $extras['earnings'] + $extras['advanceIou'] + $otEarn + $dayEarn;
-            $extraDeductionAmount = $extras['deductions'] + $otDeduct + $dayDeduct;
-            $totalEarn = $extraEarningAmount;
-            $totalDeduct = $extraDeductionAmount;
-
+        if (!$emp) {
             return [
-                'gross'        => $gross,
-                'basic'        => $basic,
-                'total_earn'   => $totalEarn,
-                'total_deduct' => $totalDeduct,
-                'net'          => $gross + $totalEarn - $totalDeduct,
-                'ot'           => $otEarn - $otDeduct,
-                'present'      => $sheets->sum('present_days'),
-                'absent'       => $sheets->sum('absent_days'),
+                'gross' => 0,
+                'basic' => 0,
+                'house_rent' => 0,
+                'medical' => 0,
+                'transport' => 0,
+                'total_earn' => 0,
+                'total_deduct' => 0,
+                'net' => 0,
+                'ot' => 0,
+                'ot_hours' => 0,
+                'present' => 0,
+                'absent' => 0,
             ];
         }
 
-        // Fallback: use hr_employee_salary() helper
-        $gross    = (float) ($sal['gross']    ?? $emp->gross_salary ?? 0);
-        $basic    = (float) ($sal['basic']    ?? $emp->basic_salary ?? 0);
-        $deductFrom = (string) ($sal['deduct_from'] ?? 'gross');
-        $dayBase = $deductFrom === 'basic' ? $basic : $gross;
-        $dayRate = $dayBase > 0 ? ($dayBase / 30) : 0;
+        $factoryNo = (int) (hr_factory('factory_no') ?? 0);
+        $employeeData = $employeeDataFn($emp, $request ?? null, null, null, null, null);
+        $salaryReport = $employeeData['getSalaryReport']($from, $to);
+        $sal          = hr_employee_salary($emp);
+        $otRate       = (float) ($employeeData['salary']['ot_rate'] ?? $sal['ot_rate'] ?? 0);
 
-        $otEarn   = $extras['otPlusHours'] * $otRate;
-        $otDeduct = $extras['otMinusHours'] * $otRate;
-        $dayEarn  = $extras['dayPlus'] * $dayRate;
-        $dayDeduct = $extras['dayMinus'] * $dayRate;
-        $extraEarningAmount = $extras['earnings'] + $extras['advanceIou'] + $otEarn + $dayEarn;
-        $extraDeductionAmount = $extras['deductions'] + $otDeduct + $dayDeduct;
-        $totalEarn   = $extraEarningAmount;
-        $totalDeduct = $extraDeductionAmount;
-        $net         = $gross + $totalEarn - $totalDeduct;
+        $attendancePack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate(
+            $emp->id,
+            $from,
+            $to
+        );
+        $summary = $attendancePack['summary'] ?? [];
+        $otHours = ($factoryNo === 1 || $factoryNo === 2)
+            ? (float) ($summary['totalComplianceOt'] ?? 0)
+            : (float) ($summary['totalOt'] ?? 0);
+        $otAmount = round($otHours * $otRate, 2);
+
+        $present = $sheets->isNotEmpty() ? (int) $sheets->sum('present_days') : 0;
+        $absent  = $sheets->isNotEmpty() ? (int) $sheets->sum('absent_days') : 0;
 
         return [
-            'gross'        => $gross,
-            'basic'        => $basic,
-            'total_earn'   => $totalEarn,
-            'total_deduct' => $totalDeduct,
-            'net'          => $net,
-            'ot'           => $otEarn - $otDeduct,
-            'present'      => 0,
-            'absent'       => 0,
+            'gross'        => (float) ($salaryReport['gross'] ?? $sal['gross'] ?? 0),
+            'basic'        => (float) ($salaryReport['basic'] ?? $sal['basic'] ?? 0),
+            'house_rent'   => (float) ($sal['house'] ?? 0),
+            'medical'      => (float) ($sal['medical'] ?? 0),
+            'transport'    => (float) ($sal['transport'] ?? 0),
+            'total_earn'   => (float) ($salaryReport['total_earn'] ?? 0),
+            'total_deduct' => (float) ($salaryReport['total_deduct'] ?? 0),
+            'net'          => (float) ($salaryReport['net'] ?? 0),
+            // OT hours/amount follow payslip & job-card factory logic
+            'ot'           => $otAmount,
+            'ot_hours'     => $otHours,
+            'present'      => $present,
+            'absent'       => $absent,
         ];
     };
 @endphp
@@ -169,14 +123,15 @@
                 @foreach($bySec as $secId => $secEmps)
                     @php
                         $totalEarn = 0; $totalDeduct = 0; $totalNet = 0;
+                        $grossSum = 0;
                         foreach($secEmps as $emp) {
                             $sd = $empSalary($emp->id, $emp);
+                            $grossSum    += $sd['gross'];
                             $totalEarn   += $sd['total_earn'];
                             $totalDeduct += $sd['total_deduct'];
                             $totalNet    += $sd['net'];
                         }
                         $cnt = $secEmps->count();
-                        $grossSum = $secEmps->sum(fn($e) => (float)($e->gross_salary ?? 0));
                         $gEarning += $totalEarn;
                         $gDeduct  += $totalDeduct;
                         $gNet     += $totalNet;
@@ -226,6 +181,7 @@
                     <th>Join Date</th>
                     <th>Gross</th>
                     <th>Basic</th>
+                    <th>OT Hrs</th>
                     <th>OT Amt</th>
                     <th>Total Earn</th>
                     <th>Deduction</th>
@@ -261,6 +217,7 @@
                         <td class="tc">{{ optional($employee->joining_date)->format('d-M-y') ?? '-' }}</td>
                         <td class="tr">{{ $fmt($sd['gross']) }}</td>
                         <td class="tr">{{ $fmt($sd['basic']) }}</td>
+                        <td class="tc">{{ number_format($sd['ot_hours'], 2) }}</td>
                         <td class="tr">{{ $fmt($sd['ot']) }}</td>
                         <td class="tr">{{ $fmt($sd['total_earn']) }}</td>
                         <td class="tr">{{ $fmt($sd['total_deduct']) }}</td>
@@ -271,7 +228,7 @@
                     </tr>
                 @endforeach
                 <tr class="summary-row">
-                    <td colspan="{{ $withPicture ? 14 : 13 }}" class="tr">Total Net Pay:</td>
+                    <td colspan="{{ $withPicture ? 15 : 14 }}" class="tr">Total Net Pay:</td>
                     <td class="tr">{{ $fmt($totalNet) }}</td>
                     <td></td><td></td><td></td>
                 </tr>

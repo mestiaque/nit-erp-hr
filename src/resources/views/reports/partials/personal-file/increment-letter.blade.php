@@ -57,7 +57,7 @@
     <table style="width: 100%; margin-bottom: 20px;">
         <tr>
             <td><strong>{{ $t('সূত্র নং', 'Ref No') }}:</strong> {{ $employeeId }}/INC/{{ date('Y') }}</td>
-            <td style="text-align: right;"><strong>{{ $t('তারিখ', 'Date') }}:</strong> {{ $isBangla ? bn_date($incrementDate) : $incrementDate }}</td>
+            <td style="text-align: right;"><strong>{{ $t('তারিখ', 'Date') }}:</strong> {{ $isBangla ? bn_date($increment  Date) : $incrementDate }}</td>
         </tr>
     </table>
 

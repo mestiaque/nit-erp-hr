@@ -190,21 +190,30 @@
         }
 
         function openPrintTab() {
-            if (typeof reportForm.reportValidity === 'function' && !reportForm.reportValidity()) {
-                return;
+            try {
+                if (typeof reportForm.reportValidity === 'function' && !reportForm.reportValidity()) {
+                    hideLoaderIfVisible();
+                    return false;
+                }
+
+                const formData = new FormData(reportForm);
+                formData.set('print', '1');
+
+                const params = new URLSearchParams();
+                for (const [key, value] of formData.entries()) {
+                    params.append(key, String(value));
+                }
+
+                const url = reportForm.action + (reportForm.action.includes('?') ? '&' : '?') + params.toString();
+                window.open(url, '_blank');
+            } finally {
+                // Always hide loader, even if error
+                hideLoaderIfVisible();
+                // Hide loader again after a short delay in case any async loader is triggered
+                setTimeout(hideLoaderIfVisible, 300);
+                setTimeout(hideLoaderIfVisible, 800);
             }
-
-            const formData = new FormData(reportForm);
-            formData.set('print', '1');
-
-            const params = new URLSearchParams();
-            for (const [key, value] of formData.entries()) {
-                params.append(key, String(value));
-            }
-
-            const url = reportForm.action + (reportForm.action.includes('?') ? '&' : '?') + params.toString();
-            window.open(url, '_blank');
-            hideLoaderIfVisible();
+            return false;
         }
 
         // Right/middle/modified clicks can trigger global loader logic without unloading this page.
@@ -226,6 +235,7 @@
             event.preventDefault();
             event.stopPropagation();
             openPrintTab();
+            return false;
         });
 
         printButton.addEventListener('mouseup', function(event) {

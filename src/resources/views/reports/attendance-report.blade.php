@@ -16,8 +16,13 @@
                 <div class="row">
 
                     <div class="col-md-3 mb-3">
-                        <label class="mb-1">Date</label>
-                        <input type="date" name="date" class="form-control form-control-sm" value="{{ $request->date ?? date('Y-m-d') }}">
+                        <label class="mb-1">From Date</label>
+                        <input type="date" name="from" class="form-control form-control-sm" value="{{ $request->from ?? date('Y-m-01') }}">
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="mb-1">To Date</label>
+                        <input type="date" name="to" class="form-control form-control-sm" value="{{ $request->to ?? date('Y-m-d') }}">
                     </div>
 
                     <div class="col-md-3 mb-3">

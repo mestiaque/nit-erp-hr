@@ -30,7 +30,42 @@
     $departmentMap = collect($hrOptions['departments'])->pluck('name', 'id');
     $sectionMap = collect($hrOptions['sections'])->pluck('name', 'id');
     $subSectionMap = collect($hrOptions['subSections'])->pluck('name', 'id');
-    $designationMap = collect($hrOptions['designations'])->pluck('name', 'id');
+    $designationMap = \ME\Hr\Models\Designation::query()->pluck('name', 'id');
+
+    // Pre-load all BonusPolicies for the selected bonus title
+    $policies = $bonusTitle
+        ? \ME\Hr\Models\BonusPolicy::where('bonus_title_id', $bonusTitle->id)
+            ->where('status', 'active')
+            ->get()
+        : collect();
+
+    // Find the best matching policy for an employee
+    $matchPolicy = function($employee) use ($policies) {
+        if ($policies->isEmpty()) return null;
+        // Prefer most specific: section + designation match, then designation only, then section only, then wildcard
+        return $policies->first(fn($p) =>
+                (!$p->designation_id || $p->designation_id == $employee->designation_id)
+                && (!$p->section_id || $p->section_id == $employee->section_id)
+        );
+    };
+
+    // Calculate bonus for one employee
+    $calcBonus = function($employee, $gross, $basic, $percent, $policy) {
+        if (!$policy) {
+            // No policy: proportional gross
+            return round($gross * $percent / 100, 2);
+        }
+        $base = match((string)($policy->salary_basis ?? 'gross')) {
+            'basic' => $basic,
+            'gross' => $gross,
+            default => $gross,
+        };
+        $amount = (string)($policy->amount_type ?? 'percent') === 'fixed'
+            ? (float) $policy->amount
+            : round($base * (float)$policy->amount / 100, 2);
+        // Proportional by attendance percentage
+        return round($amount * $percent / 100, 2);
+    };
 @endphp
 
 <div class="report-head">
@@ -86,14 +121,13 @@
             @foreach($deptEmps as $employee)
                 @php
                     $info = $attendanceSummary[$employee->id] ?? [];
-                    $gross   = (float)($employee->gross_salary ?? 0);
-                    $basic   = (float)($employee->basic_salary ?? 0);
+                    $empSal  = hr_employee_salary($employee);
+                    $gross   = (float) ($empSal['gross'] ?? $employee->gross_salary ?? 0);
+                    $basic   = (float) ($empSal['basic'] ?? $employee->basic_salary ?? 0);
                     $percent = $info['percent'] ?? 0;
                     $present = $info['present'] ?? 0;
-                    // Simple bonus = gross salary (100% present) or proportional
-                    $bonus = $category === 'fixed'
-                        ? round($gross * $percent / 100, 2)
-                        : 0; // production bonus calculation depends on policy
+                    $policy  = $matchPolicy($employee);
+                    $bonus   = $calcBonus($employee, $gross, $basic, $percent, $policy);
                     $totalBonus += $bonus;
 
                     // Job age
