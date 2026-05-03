@@ -13,6 +13,8 @@
         @elseif($type === 'select')
             @php($selectOptions = $options[$name] ?? [])
             @php($isBinaryStatus = $name === 'status' && isset($selectOptions['active']) && isset($selectOptions['inactive']) && count($selectOptions) === 2)
+            @php($queryDefault = !$item->exists && request()->filled($name) ? request()->input($name) : null)
+            @php($defaultValue = old($name, $queryDefault ?? $item->{$name}))
 
             @if($isBinaryStatus)
                 @php($isActive = old($name, $item->{$name} ?? 'active') === 'active')
@@ -32,7 +34,7 @@
                 <select name="{{ $name }}" class="form-control form-control-sm">
                     <option value="">Select</option>
                     @foreach($selectOptions as $value => $label)
-                        <option value="{{ $value }}" @selected((string) old($name, $item->{$name}) === (string) $value)>{{ $label }}</option>
+                        <option value="{{ $value }}" @selected((string) $defaultValue === (string) $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             @endif

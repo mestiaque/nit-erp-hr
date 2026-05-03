@@ -24,6 +24,9 @@
 
                 <div class="text-right">
                     <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                    @if($entityKey === 'bonus-titles')
+                        <button type="submit" name="add_policy" value="1" class="btn btn-info btn-sm">Save & Add Policy</button>
+                    @endif
                     <a href="{{ route('hr-center.masters.index', $entityKey) }}" class="btn btn-light btn-sm">Back</a>
                 </div>
             </form>

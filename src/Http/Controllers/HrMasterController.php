@@ -83,6 +83,12 @@ class HrMasterController extends Controller
         }
         $item->save();
 
+        if ($entity === 'bonus-titles' && $request->boolean('add_policy')) {
+            return redirect()
+                ->route('hr-center.masters.create', ['entity' => 'bonus-policies', 'bonus_title_id' => $item->id])
+                ->with('success', $config['title'] . ' created successfully. Now add a related policy.');
+        }
+
         return redirect()->route('hr-center.masters.index', $entity)->with('success', $config['title'] . ' created successfully.');
     }
 
@@ -112,6 +118,12 @@ class HrMasterController extends Controller
             $item->editedby_id = Auth::id();
         }
         $item->save();
+
+        if ($entity === 'bonus-titles' && $request->boolean('add_policy')) {
+            return redirect()
+                ->route('hr-center.masters.create', ['entity' => 'bonus-policies', 'bonus_title_id' => $item->id])
+                ->with('success', $config['title'] . ' updated successfully. Now add a related policy.');
+        }
 
         return redirect()->route('hr-center.masters.index', $entity)->with('success', $config['title'] . ' updated successfully.');
     }

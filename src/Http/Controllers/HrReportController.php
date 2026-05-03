@@ -1622,103 +1622,32 @@ class HrReportController extends Controller
     // BONUS SHEET
     // ──────────────────────────────────────────────────────────────────
 
-    private function bonusSheetScreen(Request $request, string $report)
+    public function bonusSheetScreen(Request $request, string $report)
     {
+        // 1. Options and Static Data
         $options = $this->employeeReportOptions();
-        $bonusTitles = BonusTitle::where('status', 'active')->orderBy('title')->get(['id', 'title', 'bn_title']);
+        $bonusTitles = BonusTitle::where('status', 'active')
+            ->orderBy('title')
+            ->get(['id', 'title', 'bn_title']);
+
+        // Only two bonus types
         $bonusCategories = [
             'fixed'      => 'Fixed',
             'production' => 'Production',
         ];
+
+        // Only two report types
         $reportTypes = [
             'details' => 'Details',
             'summary' => 'Summary',
         ];
 
+        // 2. Handle Bonus Print Request
         if ($request->boolean('print')) {
-            $category   = $request->input('bonus_category', 'fixed');
-            $upToDate   = $request->input('up_to_date') ?: now()->toDateString();
-            $fromDate   = $request->input('from') ?: now()->startOfMonth()->toDateString();
-            $toDate     = $request->input('to') ?: $upToDate;
-            $reportType = $request->input('report_type', 'details');
-
-            $employees = $this->employeeReportQuery($request)
-                ->orderBy('department_id')
-                ->orderBy('section_id')
-                ->orderBy('name')
-                ->get();
-
-            $departmentMap  = collect($options['departments'])->pluck('name', 'id');
-            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
-            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
-            $designationMap = Designation::query()->pluck('name', 'id');
-            $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
-                $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
-            ]);
-
-            $bonusTitleId = $request->input('bonus_title');
-            $bonusTitle   = $bonusTitleId ? BonusTitle::find($bonusTitleId) : null;
-
-            // For fixed bonus: calculate based on gross salary attendance %
-            // For production bonus: based on from-to date range
-            $attendanceSummary = [];
-            if ($category === 'fixed') {
-                // Count present days up to upToDate for current month
-                $monthStart = \Carbon\Carbon::parse($upToDate)->startOfMonth()->toDateString();
-                $atts = \ME\Hr\Models\Attendance::query()
-                    ->whereIn('user_id', $employees->pluck('id'))
-                    ->whereBetween('date', [$monthStart, $upToDate])
-                    ->get()
-                    ->groupBy('user_id');
-
-                // Working days = calendar days in range minus Fridays (default weekend)
-                $empWeekend = strtolower(hr_factory('weekend') ?? 'friday');
-                $workingDays = 0;
-                for ($d = \Carbon\Carbon::parse($monthStart); $d->lte(\Carbon\Carbon::parse($upToDate)); $d->addDay()) {
-                    if (strtolower($d->format('l')) !== $empWeekend) {
-                        $workingDays++;
-                    }
-                }
-
-                foreach ($employees as $emp) {
-                    $empAtts = $atts->get($emp->id, collect());
-                    $presentDays = $empAtts->filter(fn ($a) => $a->in_time !== null)->count();
-                    $percent = $workingDays > 0 ? round(($presentDays / $workingDays) * 100, 0) : 0;
-                    $attendanceSummary[$emp->id] = [
-                        'present' => $presentDays,
-                        'working' => $workingDays,
-                        'percent' => $percent,
-                    ];
-                }
-            } else {
-                // Production: attendance over from-to range
-                $atts = \ME\Hr\Models\Attendance::query()
-                    ->whereIn('user_id', $employees->pluck('id'))
-                    ->whereBetween('date', [$fromDate, $toDate])
-                    ->get()
-                    ->groupBy('user_id');
-
-                foreach ($employees as $emp) {
-                    $empAtts = $atts->get($emp->id, collect());
-                    $presentDays = $empAtts->filter(fn ($a) => $a->in_time !== null)->count();
-                    $attendanceSummary[$emp->id] = ['present' => $presentDays];
-                }
-            }
-
-            return view('hr::reports.bonus-sheet-print', compact(
-                'request', 'employees', 'category', 'upToDate', 'fromDate', 'toDate',
-                'reportType', 'bonusTitle', 'attendanceSummary',
-                'departmentMap', 'sectionMap', 'subSectionMap', 'designationMap', 'lineMap'
-            ) + [
-                'withPicture'     => $request->boolean('with_picture'),
-                'language'        => $request->input('language', 'en'),
-                'upToDateLabel'   => \Carbon\Carbon::parse($upToDate)->format('d-M-Y'),
-                'fromLabel'       => \Carbon\Carbon::parse($fromDate)->format('d-M-Y'),
-                'toLabel'         => \Carbon\Carbon::parse($toDate)->format('d-M-Y'),
-                'categoryLabel'   => $bonusCategories[$category] ?? 'Fixed',
-            ]);
+            return $this->printBonusSheetByCategory($request, $options, $bonusCategories);
         }
 
+        // 3. Default: show bonus sheet setup screen
         return view('hr::reports.bonus-sheet', [
             'reportKey'       => $report,
             'reportTitle'     => config('hr.reports.' . $report),
@@ -1728,6 +1657,181 @@ class HrReportController extends Controller
             'reportTypes'     => $reportTypes,
             'request'         => $request,
         ]);
+    }
+
+    private function printBonusSheetByCategory(Request $request, array $options, array $bonusCategories)
+    {
+        $category = (string) $request->input('bonus_category', 'fixed');
+        abort_unless(array_key_exists($category, $bonusCategories), 400, 'Unsupported bonus category.');
+
+        $upToDate = $request->input('up_to_date') ?: now()->toDateString();
+        $fromDate = $request->input('from') ?: now()->startOfMonth()->toDateString();
+        $toDate   = $request->input('to') ?: ($category === 'fixed' ? $upToDate : now()->toDateString());
+        $reportType = $request->input('report_type', 'details');
+        $language   = $request->input('language', 'en');
+
+        $bonusTitleId = $request->input('bonus_title');
+        $bonusTitle   = null;
+        $policies     = collect();
+        if (filled($bonusTitleId)) {
+            $bonusTitle = BonusTitle::find($bonusTitleId);
+            abort_unless($bonusTitle, 404, 'Bonus title not found');
+
+            $policies = BonusPolicy::query()
+                ->where('bonus_title_id', $bonusTitle->id)
+                ->where('status', 'active')
+                ->get();
+
+            if ($policies->isEmpty()) {
+                $policies = BonusPolicy::query()
+                    ->where('bonus_title_id', $bonusTitle->id)
+                    ->get();
+            }
+        }
+
+        $employees = $this->employeeReportQuery($request)
+            ->orderBy('department_id')
+            ->orderBy('section_id')
+            ->orderBy('name')
+            ->get();
+
+        [$bonusData, $hasPctPolicy] = $this->calculateBonusData($employees, $policies, $upToDate);
+
+        // Only show employees with a matched policy
+        $employees = $employees->filter(fn ($emp) => $bonusData[$emp->id]['policy'] !== null)->values();
+
+        $departmentMap  = collect($options['departments'])->pluck('name', 'id');
+        $sectionMap     = collect($options['sections'])->pluck('name', 'id');
+        $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
+        $designationMap = Designation::query()->pluck('name', 'id');
+        $lineMap = collect($options['lines'])->mapWithKeys(fn ($row) => [
+            $row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : '')),
+        ]);
+
+        $view = $category === 'production'
+            ? 'hr::reports.bonus-sheet-production-print'
+            : 'hr::reports.bonus-sheet-fixed-print';
+
+        return view($view, [
+            'request'        => $request,
+            'employees'      => $employees,
+            'category'       => $category,
+            'upToDate'       => $upToDate,
+            'fromDate'       => $fromDate,
+            'toDate'         => $toDate,
+            'reportType'     => $reportType,
+            'bonusTitle'     => $bonusTitle,
+            'bonusData'      => $bonusData,
+            'hasPctPolicy'   => $hasPctPolicy,
+            'departmentMap'  => $departmentMap,
+            'sectionMap'     => $sectionMap,
+            'subSectionMap'  => $subSectionMap,
+            'designationMap' => $designationMap,
+            'lineMap'        => $lineMap,
+            'withPicture'    => $request->boolean('with_picture'),
+            'language'       => $language,
+            'upToDateLabel'  => \Carbon\Carbon::parse($upToDate)->format('d-M-Y'),
+            'fromLabel'      => \Carbon\Carbon::parse($fromDate)->format('d-M-Y'),
+            'toLabel'        => \Carbon\Carbon::parse($toDate)->format('d-M-Y'),
+            'categoryLabel'  => $bonusCategories[$category] ?? 'Fixed',
+        ]);
+    }
+
+    private function calculateBonusData($employees, $policies, string $upToDate): array
+    {
+        $referenceDate = \Carbon\Carbon::parse($upToDate);
+        $bonusData     = [];
+        $hasPctPolicy  = false;
+
+        foreach ($employees as $employee) {
+            $employeeSalary = hr_employee_salary($employee);
+            $gross = (float) ($employeeSalary['gross'] ?? $employee->gross_salary ?? 0);
+            $basic = (float) ($employeeSalary['basic'] ?? $employee->basic_salary ?? 0);
+            $productionBase = (float) (
+                data_get($employeeSalary, 'production_salary')
+                ?? data_get($employeeSalary, 'production')
+                ?? data_get($employeeSalary, 'total_production')
+                ?? 0
+            );
+
+            $joiningDate   = $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date) : null;
+            $serviceMonths = $joiningDate
+                ? max(0, (int) $joiningDate->diffInMonths($referenceDate, false))
+                : null;
+
+            $matchedPolicy = $policies->filter(function ($policy) use ($employee, $serviceMonths) {
+                $designationMatch = !$policy->designation_id
+                    || (int) $policy->designation_id === (int) $employee->designation_id;
+                $sectionMatch = !$policy->section_id
+                    || (int) $policy->section_id === (int) $employee->section_id;
+
+                $monthFrom = is_null($policy->month_from) ? null : (int) $policy->month_from;
+                $monthTo   = is_null($policy->month_to)   ? null : (int) $policy->month_to;
+
+                $monthMatch = true;
+                if (!is_null($serviceMonths)) {
+                    if (!is_null($monthFrom)) {
+                        $monthMatch = $monthMatch && ($serviceMonths >= $monthFrom);
+                    }
+                    if (!is_null($monthTo)) {
+                        $monthMatch = $monthMatch && ($serviceMonths <= $monthTo);
+                    }
+                } elseif (!is_null($monthFrom) || !is_null($monthTo)) {
+                    $monthMatch = false;
+                }
+
+                return $designationMatch && $sectionMatch && $monthMatch;
+            })->sortByDesc(function ($policy) {
+                return (is_null($policy->designation_id) ? 0 : 4)
+                    + (is_null($policy->section_id)      ? 0 : 2)
+                    + (is_null($policy->month_from)       ? 0 : 1)
+                    + (is_null($policy->month_to)         ? 0 : 1);
+            })->first();
+
+            $bonus       = 0.0;
+            $amountType  = '';
+            $salaryBasis = '';
+            $percent     = null;
+
+            if ($matchedPolicy) {
+                $amountType  = strtolower($matchedPolicy->amount_type  ?? 'percent');
+                $salaryBasis = strtolower($matchedPolicy->salary_basis ?? 'gross');
+
+                $base = match ($salaryBasis) {
+                    'basic'      => $basic,
+                    'production' => $productionBase,
+                    default      => $gross,
+                };
+
+                if ($amountType === 'fixed') {
+                    $bonus   = (float) $matchedPolicy->amount;
+                    $percent = null;
+                } else {
+                    $percent      = (float) $matchedPolicy->amount; // policy percentage
+                    $bonus        = round($base * $percent / 100, 2);
+                    $hasPctPolicy = true;
+                }
+            }
+
+            $jobAge = 'N/A';
+            if ($joiningDate) {
+                $diff   = $joiningDate->diff($referenceDate);
+                $jobAge = sprintf('%dy %dm %dd', $diff->y, $diff->m, $diff->d);
+            }
+
+            $bonusData[$employee->id] = [
+                'policy'       => $matchedPolicy,
+                'amount_type'  => $amountType,
+                'salary_basis' => $salaryBasis,
+                'gross'        => $gross,
+                'basic'        => $basic,
+                'percent'      => $percent,
+                'bonus'        => $bonus,
+                'job_age'      => $jobAge,
+            ];
+        }
+
+        return [$bonusData, $hasPctPolicy];
     }
 
     // ──────────────────────────────────────────────────────────────────

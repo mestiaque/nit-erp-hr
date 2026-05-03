@@ -164,6 +164,10 @@ return [
             'label' => 'Salary Report (Wage)',
             'permissions' => [ 'view' => 'View', 'all'  => 'All',]
         ],
+        'pay_slip_report' => [
+            'label' => 'Pay Slip',
+            'permissions' => [ 'view' => 'View', 'all'  => 'All',]
+        ],
 
         'hr_production_rate_linking' => [ 
             'label' => 'Production Rate (Linking)', 

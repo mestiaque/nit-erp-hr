@@ -51,23 +51,50 @@
                 </form>
 
                 <div class="table-responsive">
+                    @php($isBonusPolicyIndex = $entityKey === 'bonus-policies')
+                    @if($isBonusPolicyIndex)
+                        @php($sectionLabels = $options['section_id'] ?? [])
+                        @php($designationLabels = $options['designation_id'] ?? [])
+                    @endif
                     <table class="table table-bordered table-sm">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                @foreach($entity['index_fields'] as $field)
-                                    <th>{{ ucwords(str_replace(['_', 'id'], [' ', ''], $field)) }}</th>
-                                @endforeach
+                                @if($isBonusPolicyIndex)
+                                    <th>Section</th>
+                                    <th>Designation</th>
+                                    <th>Month From</th>
+                                    <th>Month To</th>
+                                    <th>Basic/Gross/Production (Basis)</th>
+                                    <th>Percentage/Fixed (Type)</th>
+                                    <th>Amount</th>
+                                    <th>Is Active</th>
+                                @else
+                                    <th>ID</th>
+                                    @foreach($entity['index_fields'] as $field)
+                                        <th>{{ ucwords(str_replace(['_', 'id'], [' ', ''], $field)) }}</th>
+                                    @endforeach
+                                @endif
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($items as $item)
                                 <tr>
-                                    <td>{{ ($items->currentPage() - 1) * $items->perPage() + $loop->iteration }}</td>
-                                    @foreach($entity['index_fields'] as $field)
-                                        <td>{{ is_scalar($item->{$field}) || is_null($item->{$field}) ? $item->{$field} : json_encode($item->{$field}) }}</td>
-                                    @endforeach
+                                    @if($isBonusPolicyIndex)
+                                        <td>{{ $sectionLabels[(int) $item->section_id] ?? '-' }}</td>
+                                        <td>{{ $designationLabels[(int) $item->designation_id] ?? '-' }}</td>
+                                        <td>{{ $item->month_from ?? '-' }}</td>
+                                        <td>{{ $item->month_to ?? '-' }}</td>
+                                        <td>{{ ucfirst((string) ($item->salary_basis ?? '-')) }}</td>
+                                        <td>{{ ($item->amount_type ?? null) === 'percent' ? 'Percentage' : (($item->amount_type ?? null) === 'fixed' ? 'Fixed' : '-') }}</td>
+                                        <td>{{ $item->amount ?? 0 }}</td>
+                                        <td>{{ ($item->status ?? null) === 'active' ? 'Yes' : 'No' }}</td>
+                                    @else
+                                        <td>{{ ($items->currentPage() - 1) * $items->perPage() + $loop->iteration }}</td>
+                                        @foreach($entity['index_fields'] as $field)
+                                            <td>{{ is_scalar($item->{$field}) || is_null($item->{$field}) ? $item->{$field} : json_encode($item->{$field}) }}</td>
+                                        @endforeach
+                                    @endif
                                     <td>
                                         @if($useModalForm)
                                             <a href="javascript:void(0)" class="btn-custom yellow" data-toggle="modal" data-target="#EditMasterModal_{{ $item->id }}"><i class="fas fa-edit"></i></a>
@@ -83,7 +110,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ count($entity['index_fields']) + 2 }}" class="text-center">No data found.</td>
+                                    <td colspan="{{ $isBonusPolicyIndex ? 9 : count($entity['index_fields']) + 2 }}" class="text-center">No data found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

@@ -344,7 +344,7 @@ return [
                             'icon'        => 'fa-solid fa-file-invoice-dollar',
                             'route'       => '/admin/hr-center/reports/pay-slip',
                             'icon_color'  => 'text-danger',
-                            'permission'  => ''
+                            'permission'  => 'pay_slip_report',
                         ],
                     ]
                 ],
