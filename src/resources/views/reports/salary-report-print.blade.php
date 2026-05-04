@@ -4,18 +4,56 @@
 
 @push('css')
 <style>
-.report-head { text-align:center; margin-bottom:10px; }
-.report-head h3 { margin:0 0 2px; font-size:15px; }
-.report-head p  { margin:0; font-size:11px; }
-.sub-title  { font-size:12px; font-weight:700; margin:8px 0 4px; }
-.dept-title { font-size:11px; font-weight:700; background:#dde6f0; padding:3px 6px; margin:10px 0 2px; }
-.t { width:100%; border-collapse:collapse; margin-bottom:10px; font-size:10px; }
-.t th, .t td { border:1px solid #555; padding:3px 5px; }
-.t th { background:#eef1d4; text-align:center; }
+/* ── GLOBAL ── */
+* { box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
+
+/* ── REPORT HEADER ── */
+.rpt-header { text-align:center; border-bottom:2.5px solid #1a3a5c; padding-bottom:8px; margin-bottom:10px; }
+.rpt-header h2 { margin:0 0 1px; font-size:16px; text-transform:uppercase; letter-spacing:1px; color:#1a3a5c; }
+.rpt-header p  { margin:0; font-size:10.5px; color:#444; }
+.rpt-title-bar { background:#1a3a5c; color:#fff; text-align:center; padding:5px 8px; margin-bottom:8px; }
+.rpt-title-bar h4 { margin:0; font-size:12px; letter-spacing:.5px; }
+.rpt-title-bar span { font-size:10px; opacity:.88; }
+.rpt-meta { display:flex; justify-content:space-between; font-size:9.5px; margin-bottom:8px; color:#333; }
+.rpt-meta span { display:inline-block; }
+
+/* ── GENERIC TABLE ── */
+.t { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:9.5px; }
+.t th, .t td { border:1px solid #999; padding:3px 5px; }
+.t thead tr.hdr1 th { background:#1a3a5c; color:#fff; text-align:center; font-size:9px; letter-spacing:.3px; }
+.t thead tr.hdr2 th { background:#2e6da4; color:#fff; text-align:center; font-size:9px; }
+.t tbody tr:nth-child(even) td { background:#f5f8fc; }
+.t tbody tr:hover td { background:#eaf2fb; }
 .tc { text-align:center; }
 .tr { text-align:right; }
-.summary-row td { background:#e8f5e9; font-weight:700; }
+.tl { text-align:left; }
+
+/* ── DEPT GROUP ── */
+.dept-group-header td { background:#d0e4f7; color:#1a3a5c; font-weight:700; font-size:9.5px; border-top:2px solid #2e6da4; }
+.dept-subtotal td    { background:#cfe2f3; font-weight:700; font-size:9.5px; border-top:1.5px solid #2e6da4; }
+
+/* ── GRAND TOTAL ── */
+.grand-total td { background:#1a3a5c; color:#fff; font-weight:700; font-size:10px; border:1px solid #1a3a5c; }
+
+/* ── SUMMARY BADGES ── */
+.stat-bar { display:flex; gap:8px; margin-bottom:10px; }
+.stat-box { flex:1; border:1px solid #2e6da4; border-radius:3px; padding:5px 8px; text-align:center; background:#f0f6fc; }
+.stat-box .val { font-size:14px; font-weight:700; color:#1a3a5c; display:block; }
+.stat-box .lbl { font-size:8.5px; color:#555; text-transform:uppercase; letter-spacing:.4px; }
+
+/* ── DETAIL TABLE ── */
+.dept-title { font-size:10.5px; font-weight:700; background:#1a3a5c; color:#fff; padding:4px 8px; margin:12px 0 2px; letter-spacing:.3px; }
+.summary-row td { background:#dcedc8; font-weight:700; }
 .photo-cell img { max-width:28px; max-height:34px; }
+
+/* ── FOOTER ── */
+.rpt-footer { margin-top:18px; border-top:1.5px solid #1a3a5c; padding-top:8px; }
+.sig-row { display:flex; justify-content:space-between; margin-top:24px; }
+.sig-box { text-align:center; width:18%; }
+.sig-box .sig-line { border-top:1px solid #333; margin-bottom:3px; }
+.sig-box .sig-lbl  { font-size:8.5px; color:#333; }
+.rpt-footer-note { font-size:8px; color:#666; text-align:center; margin-top:10px; }
 </style>
 @endpush
 @section('contents')
@@ -69,9 +107,18 @@
             ? (float) ($summary['totalComplianceOt'] ?? 0)
             : (float) ($summary['totalOt'] ?? 0);
         $otAmount = round($otHours * $otRate, 2);
+        $salaryOt = (float) ($salaryReport['ot'] ?? 0);
+        $otAdjustment = $otAmount - $salaryOt;
+        $totalEarn = (float) ($salaryReport['total_earn'] ?? 0) + $otAdjustment;
+        $netPay = (float) ($salaryReport['net'] ?? 0) + $otAdjustment;
 
-        $present = $sheets->isNotEmpty() ? (int) $sheets->sum('present_days') : 0;
-        $absent  = $sheets->isNotEmpty() ? (int) $sheets->sum('absent_days') : 0;
+        // Attendance summary is period-aware; use it as source of truth for present/absent.
+        $present = isset($summary['totalPresentAll'])
+            ? (int) $summary['totalPresentAll']
+            : ($sheets->isNotEmpty() ? (int) $sheets->sum('present_days') : 0);
+        $absent = isset($summary['totalAbsent'])
+            ? (int) $summary['totalAbsent']
+            : ($sheets->isNotEmpty() ? (int) $sheets->sum('absent_days') : 0);
 
         return [
             'gross'        => (float) ($salaryReport['gross'] ?? $sal['gross'] ?? 0),
@@ -79,9 +126,9 @@
             'house_rent'   => (float) ($sal['house'] ?? 0),
             'medical'      => (float) ($sal['medical'] ?? 0),
             'transport'    => (float) ($sal['transport'] ?? 0),
-            'total_earn'   => (float) ($salaryReport['total_earn'] ?? 0),
+            'total_earn'   => $totalEarn,
             'total_deduct' => (float) ($salaryReport['total_deduct'] ?? 0),
-            'net'          => (float) ($salaryReport['net'] ?? 0),
+            'net'          => $netPay,
             // OT hours/amount follow payslip & job-card factory logic
             'ot'           => $otAmount,
             'ot_hours'     => $otHours,
@@ -92,80 +139,207 @@
 @endphp
 
 
-<div class="report-head">
-    <h3>{{ $company }}</h3>
+{{-- ── CORPORATE REPORT HEADER ── --}}
+<div class="rpt-header">
+    <h2>{{ $company }}</h2>
     <p>{{ $address }}</p>
 </div>
-
-<div class="sub-title">{{ $reportTypeLabel }} ({{ $fromLabel }} To {{ $toLabel }})</div>
+<div class="rpt-title-bar">
+    <h4>{{ $reportTypeLabel }}</h4>
+    <span>Period: {{ $fromLabel }} &mdash; {{ $toLabel }}</span>
+</div>
+<div class="rpt-meta">
+    <span><strong>Print Date:</strong> {{ now()->format('d M Y, h:i A') }}</span>
+    <span><strong>Currency:</strong> BDT (Bangladeshi Taka)</span>
+</div>
 
 @if($reportType === 'wages-salary-summary')
     {{-- ── WAGES & SALARY SUMMARY ── --}}
+    @php
+        // Pre-compute all salary data grouped by dept → section
+        $summaryData = [];
+        $grandTotals = [
+            'emp' => 0, 'basic' => 0, 'house_rent' => 0, 'medical' => 0,
+            'transport' => 0, 'ot' => 0, 'gross' => 0,
+            'earn' => 0, 'deduct' => 0, 'net' => 0,
+            'present' => 0, 'absent' => 0,
+        ];
+        foreach ($byDept as $deptId => $deptEmps) {
+            $bySec = $deptEmps->groupBy('section_id');
+            foreach ($bySec as $secId => $secEmps) {
+                $row = [
+                    'dept_id' => $deptId, 'sec_id' => $secId,
+                    'emp' => $secEmps->count(),
+                    'basic' => 0, 'house_rent' => 0, 'medical' => 0,
+                    'transport' => 0, 'ot' => 0, 'gross' => 0,
+                    'earn' => 0, 'deduct' => 0, 'net' => 0,
+                    'present' => 0, 'absent' => 0,
+                ];
+                foreach ($secEmps as $emp) {
+                    $sd = $empSalary($emp->id, $emp);
+                    $row['basic']      += $sd['basic'];
+                    $row['house_rent'] += $sd['house_rent'];
+                    $row['medical']    += $sd['medical'];
+                    $row['transport']  += $sd['transport'];
+                    $row['ot']         += $sd['ot'];
+                    $row['gross']      += $sd['gross'];
+                    $row['earn']       += $sd['total_earn'];
+                    $row['deduct']     += $sd['total_deduct'];
+                    $row['net']        += $sd['net'];
+                    $row['present']    += $sd['present'];
+                    $row['absent']     += $sd['absent'];
+                }
+                $summaryData[] = $row;
+                foreach (['emp','basic','house_rent','medical','transport','ot','gross','earn','deduct','net','present','absent'] as $k) {
+                    $grandTotals[$k] += $row[$k];
+                }
+            }
+        }
+        // Group summaryData by dept for subtotals
+        $byDeptSummary = collect($summaryData)->groupBy('dept_id');
+    @endphp
+
+    {{-- KPI STAT BOXES --}}
+    <div class="stat-bar">
+        <div class="stat-box">
+            <span class="val">{{ $grandTotals['emp'] }}</span>
+            <span class="lbl">Total Employees</span>
+        </div>
+        <div class="stat-box">
+            <span class="val">{{ $fmt($grandTotals['gross']) }}</span>
+            <span class="lbl">Total Gross Salary</span>
+        </div>
+        <div class="stat-box">
+            <span class="val">{{ $fmt($grandTotals['ot']) }}</span>
+            <span class="lbl">Total OT Amount</span>
+        </div>
+        <div class="stat-box">
+            <span class="val">{{ $fmt($grandTotals['earn']) }}</span>
+            <span class="lbl">Total Earning</span>
+        </div>
+        <div class="stat-box">
+            <span class="val">{{ $fmt($grandTotals['deduct']) }}</span>
+            <span class="lbl">Total Deduction</span>
+        </div>
+        <div class="stat-box">
+            <span class="val">{{ $fmt($grandTotals['net']) }}</span>
+            <span class="lbl">Net Payable</span>
+        </div>
+    </div>
+
     <table class="t">
         <thead>
-            <tr>
-                <th>SI</th>
-                <th>Department</th>
-                <th>Section</th>
-                <th>Employees</th>
-                <th>Gross Salary</th>
-                <th>Total Earning</th>
-                <th>Total Deduction</th>
-                <th>Net Salary</th>
+            <tr class="hdr1">
+                <th rowspan="2">SL</th>
+                <th rowspan="2">Department</th>
+                <th rowspan="2">Section</th>
+                <th rowspan="2">Emp.</th>
+                <th colspan="5">Salary Components (BDT)</th>
+                <th rowspan="2">Gross<br>Salary</th>
+                <th rowspan="2">Total<br>Earning</th>
+                <th rowspan="2">Total<br>Deduction</th>
+                <th rowspan="2">Net<br>Payable</th>
+                <th rowspan="2">Present</th>
+                <th rowspan="2">Absent</th>
+            </tr>
+            <tr class="hdr2">
+                <th>Basic</th>
+                <th>House Rent</th>
+                <th>Medical</th>
+                <th>Transport</th>
+                <th>OT Amt</th>
             </tr>
         </thead>
         <tbody>
-            @php $sl = 1; $gEarning = 0; $gDeduct = 0; $gNet = 0; $gEmp = 0; @endphp
-            @forelse($byDept as $deptId => $deptEmps)
+            @php $sl = 1; @endphp
+            @forelse($byDeptSummary as $deptId => $deptRows)
                 @php
-                    $bySec = $deptEmps->groupBy('section_id');
+                    $deptTotals = [
+                        'emp'=>0,'basic'=>0,'house_rent'=>0,'medical'=>0,'transport'=>0,
+                        'ot'=>0,'gross'=>0,'earn'=>0,'deduct'=>0,'net'=>0,'present'=>0,'absent'=>0
+                    ];
                 @endphp
-                @foreach($bySec as $secId => $secEmps)
+                {{-- Dept header span --}}
+                <tr class="dept-group-header">
+                    <td colspan="15" class="tl">&nbsp;&nbsp;&#9658; {{ $departmentMap->get($deptId, 'N/A') }}</td>
+                </tr>
+                @foreach($deptRows as $row)
                     @php
-                        $totalEarn = 0; $totalDeduct = 0; $totalNet = 0;
-                        $grossSum = 0;
-                        foreach($secEmps as $emp) {
-                            $sd = $empSalary($emp->id, $emp);
-                            $grossSum    += $sd['gross'];
-                            $totalEarn   += $sd['total_earn'];
-                            $totalDeduct += $sd['total_deduct'];
-                            $totalNet    += $sd['net'];
-                        }
-                        $cnt = $secEmps->count();
-                        $gEarning += $totalEarn;
-                        $gDeduct  += $totalDeduct;
-                        $gNet     += $totalNet;
-                        $gEmp     += $cnt;
+                        foreach (array_keys($deptTotals) as $k) $deptTotals[$k] += $row[$k];
                     @endphp
                     <tr>
                         <td class="tc">{{ $sl++ }}</td>
-                        <td>{{ $departmentMap->get($deptId, 'N/A') }}</td>
-                        <td>{{ $sectionMap->get($secId, 'N/A') }}</td>
-                        <td class="tc">{{ $cnt }}</td>
-                        <td class="tr">{{ $fmt($grossSum) }}</td>
-                        <td class="tr">{{ $fmt($totalEarn) }}</td>
-                        <td class="tr">{{ $fmt($totalDeduct) }}</td>
-                        <td class="tr">{{ $fmt($totalNet) }}</td>
+                        <td class="tl">{{ $departmentMap->get($row['dept_id'], 'N/A') }}</td>
+                        <td class="tl">{{ $sectionMap->get($row['sec_id'], 'N/A') }}</td>
+                        <td class="tc">{{ $row['emp'] }}</td>
+                        <td class="tr">{{ $fmt($row['basic']) }}</td>
+                        <td class="tr">{{ $fmt($row['house_rent']) }}</td>
+                        <td class="tr">{{ $fmt($row['medical']) }}</td>
+                        <td class="tr">{{ $fmt($row['transport']) }}</td>
+                        <td class="tr">{{ $fmt($row['ot']) }}</td>
+                        <td class="tr">{{ $fmt($row['gross']) }}</td>
+                        <td class="tr">{{ $fmt($row['earn']) }}</td>
+                        <td class="tr">{{ $fmt($row['deduct']) }}</td>
+                        <td class="tr">{{ $fmt($row['net']) }}</td>
+                        <td class="tc">{{ $row['present'] }}</td>
+                        <td class="tc">{{ $row['absent'] }}</td>
                     </tr>
                 @endforeach
+                {{-- Department subtotal --}}
+                <tr class="dept-subtotal">
+                    <td colspan="3" class="tr">Sub-Total ({{ $departmentMap->get($deptId, '') }}):</td>
+                    <td class="tc">{{ $deptTotals['emp'] }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['basic']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['house_rent']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['medical']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['transport']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['ot']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['gross']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['earn']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['deduct']) }}</td>
+                    <td class="tr">{{ $fmt($deptTotals['net']) }}</td>
+                    <td class="tc">{{ $deptTotals['present'] }}</td>
+                    <td class="tc">{{ $deptTotals['absent'] }}</td>
+                </tr>
             @empty
-                <tr><td colspan="8" class="tc">No data.</td></tr>
+                <tr><td colspan="15" class="tc" style="padding:12px;color:#888;">No salary data found for the selected period.</td></tr>
             @endforelse
-            <tr class="summary-row">
-                <td colspan="3" class="tr">Grand Total:</td>
-                <td class="tc">{{ $gEmp }}</td>
-                <td></td>
-                <td class="tr">{{ $fmt($gEarning) }}</td>
-                <td class="tr">{{ $fmt($gDeduct) }}</td>
-                <td class="tr">{{ $fmt($gNet) }}</td>
-            </tr>
         </tbody>
+        <tfoot>
+            <tr class="grand-total">
+                <td colspan="3" class="tr">GRAND TOTAL</td>
+                <td class="tc">{{ $grandTotals['emp'] }}</td>
+                <td class="tr">{{ $fmt($grandTotals['basic']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['house_rent']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['medical']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['transport']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['ot']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['gross']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['earn']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['deduct']) }}</td>
+                <td class="tr">{{ $fmt($grandTotals['net']) }}</td>
+                <td class="tc">{{ $grandTotals['present'] }}</td>
+                <td class="tc">{{ $grandTotals['absent'] }}</td>
+            </tr>
+        </tfoot>
     </table>
+
+    {{-- AUTHORISATION FOOTER --}}
+    <div class="rpt-footer">
+        <div class="sig-row">
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Prepared By</div></div>
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Checked By</div></div>
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">HR Manager</div></div>
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Accounts Manager</div></div>
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Managing Director</div></div>
+        </div>
+        <div class="rpt-footer-note">This is a system-generated report. &mdash; {{ $company }} &mdash; Confidential</div>
+    </div>
 
 @else
     {{-- ── FIXED / PRODUCTION / BONUS SALARY DETAILS ── --}}
     @forelse($byDept as $deptId => $deptEmps)
-        <div class="dept-title">Department: {{ $departmentMap->get($deptId, 'N/A') }}</div>
+        <div class="dept-title">&nbsp;Department: {{ $departmentMap->get($deptId, 'N/A') }}</div>
 
         <table class="t">
             <thead>

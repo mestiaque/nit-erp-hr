@@ -95,7 +95,7 @@
     .id-card-info td {
         padding: 0;
         vertical-align: top;
-        font-size: 2.8mm !important;
+        font-size: 2.6mm !important;
     }
     .id-card-info td:first-child {
         width: 28%;

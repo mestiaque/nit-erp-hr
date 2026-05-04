@@ -76,6 +76,19 @@
     $employeeName = $isBangla
         ? (data_get($employee, 'bn_name') ?? data_get($employee, 'name') ?? $na)
         : (data_get($employee, 'name') ?? data_get($employee, 'bn_name') ?? $na);
+    $nameLength = function_exists('mb_strlen')
+        ? mb_strlen(trim((string) $employeeName))
+        : strlen(trim((string) $employeeName));
+    $nameFontSize = 12;
+    if ($nameLength > 34) {
+        $nameFontSize = 8;
+    } elseif ($nameLength > 28) {
+        $nameFontSize = 9;
+    } elseif ($nameLength > 22) {
+        $nameFontSize = 10;
+    } elseif ($nameLength > 16) {
+        $nameFontSize = 11;
+    }
     $bloodGroup = data_get($employee, 'blood_group', $na);
     $emergency = $isBangla ? en2bnNumber(data_get($employee, 'emergency_mobile', data_get($employee, 'emergency_contact_no', data_get($employee, 'mobile', $na)))) : data_get($employee, 'emergency_contact_no', data_get($employee, 'emergency_mobile', data_get($employee, 'mobile', $na)));
     $idNumber = data_get($employee, 'employee_id', data_get($employee, 'id', $na));
@@ -105,15 +118,15 @@
         </div>
 
         <table class="id-card-info">
-            <tr><td>{{ $t('নাম', 'Name') }}</td><td>: {{ $employeeName }}</td></tr>
+            <tr><td>{{ $t('নাম', 'Name') }}</td><td class="name-cell"><span class="name-value" style="font-size: {{ $nameFontSize }}px;">: {{ $employeeName }}</span></td></tr>
             <tr><td>{{ $t('পদবি', 'Designation') }}</td><td>: {{ $designation }}</td></tr>
             <tr><td>{{ $t('আইডি নং', 'ID No.') }}</td><td>: {{ $idNumber }}</td></tr>
             <tr><td>{{ $t('বিভাগ', 'Dept.') }}</td><td>: {{ $department }}</td></tr>
             <tr><td>{{ $t('সেকশন', 'Section') }}</td><td>: {{ $section }}</td></tr>
-            <tr><td>{{ $t('যোগদানের তারিখ', 'Join Date') }}</td><td>: {{ $joinDate }}</td></tr>
+            <tr><td>{{ $t('যোগদান', 'Join Date') }}</td><td>: {{ $joinDate }}</td></tr>
             <tr><td>{{ $t('শ্রেণি', 'Classification') }}</td><td>: {{ $classification }}</td></tr>
-            <tr><td>{{ $t('ইস্যু তারিখ', 'Issue Date') }}</td><td>: {{ $joinDate }}</td></tr> 
-            
+            <tr><td>{{ $t('ইস্যু তারিখ', 'Issue Date') }}</td><td>: {{ $joinDate }}</td></tr>
+
         </table>
 
         <div class="id-sign-row">
@@ -152,3 +165,15 @@
         <div class="id-card-strip id-card-strip-bottom">{{ $t('মেয়াদ: চাকরির শেষ তারিখ পর্যন্ত।', 'Exp. Date: Up to the last date of job.') }}</div>
     </div>
 </div>
+<style>
+    .name-cell {
+        white-space: nowrap;
+    }
+
+    .name-value {
+        display: inline-block;
+        max-width: 140px;
+        white-space: nowrap;
+        line-height: 1.1;
+    }
+</style>

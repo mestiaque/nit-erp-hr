@@ -1857,53 +1857,10 @@ class HrReportController extends Controller
             ->values();
 
         if ($request->boolean('print')) {
-            $from       = $request->input('from') ?: now()->startOfMonth()->toDateString();
-            $to         = $request->input('to') ?: now()->toDateString();
-            $reportType = $request->input('report_type', 'fixed');
-            if (!array_key_exists($reportType, $reportTypes)) {
-                $reportType = 'fixed';
-            }
+            $printPayload = $this->prepareSalaryReportPrintPayload($request, $options, $reportTypes);
+            $printView = $this->resolveSalaryReportPrintView($printPayload['reportType']);
 
-            $employees = $this->employeeReportQuery($request)
-                ->orderBy('department_id')
-                ->orderBy('section_id')
-                ->orderBy('name')
-                ->get();
-
-            $departmentMap  = collect($options['departments'])->pluck('name', 'id');
-            $sectionMap     = collect($options['sections'])->pluck('name', 'id');
-            $subSectionMap  = collect($options['subSections'])->pluck('name', 'id');
-            $designationMap = Designation::query()->pluck('name', 'id');
-            $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
-                $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
-            ]);
-
-            // Load salary sheets for the date range
-            $fromMonth = \Carbon\Carbon::parse($from)->month;
-            $fromYear  = \Carbon\Carbon::parse($from)->year;
-            $toMonth   = \Carbon\Carbon::parse($to)->month;
-            $toYear    = \Carbon\Carbon::parse($to)->year;
-
-            $salarySheets = \ME\Hr\Models\SalarySheet::query()
-                ->whereIn('user_id', $employees->pluck('id'))
-                ->where(function ($q) use ($fromYear, $fromMonth, $toYear, $toMonth) {
-                    $q->whereRaw("(year > ? OR (year = ? AND month >= ?))", [$fromYear, $fromYear, $fromMonth])
-                      ->whereRaw("(year < ? OR (year = ? AND month <= ?))", [$toYear, $toYear, $toMonth]);
-                })
-                ->get()
-                ->groupBy('user_id');
-
-            return view('hr::reports.salary-report-print', compact(
-                'request', 'employees', 'salarySheets', 'from', 'to',
-                'reportType', 'reportTypes',
-                'departmentMap', 'sectionMap', 'subSectionMap', 'designationMap', 'lineMap'
-            ) + [
-                'withPicture'      => $request->boolean('with_picture'),
-                'language'         => $request->input('language', 'en'),
-                'fromLabel'        => \Carbon\Carbon::parse($from)->format('d-M-Y'),
-                'toLabel'          => \Carbon\Carbon::parse($to)->format('d-M-Y'),
-                'reportTypeLabel'  => $reportTypes[$reportType],
-            ]);
+            return view($printView, $printPayload);
         }
 
         return view('hr::reports.salary-report', [
@@ -1915,6 +1872,74 @@ class HrReportController extends Controller
             'paymentModes' => $paymentModes,
             'request'      => $request,
         ]);
+    }
+
+    private function resolveSalaryReportPrintView(string $reportType): string
+    {
+        return match ($reportType) {
+            'wages-salary-summary' => 'hr::reports.salary-report-print-wages',
+            'bonus' => 'hr::reports.salary-report-print-bonus',
+            'production' => 'hr::reports.salary-report-print-production',
+            default => 'hr::reports.salary-report-print-fixed',
+        };
+    }
+
+    private function prepareSalaryReportPrintPayload(Request $request, array $options, array $reportTypes): array
+    {
+        $from = $request->input('from') ?: now()->startOfMonth()->toDateString();
+        $to = $request->input('to') ?: now()->toDateString();
+        $reportType = $request->input('report_type', 'fixed');
+        if (!array_key_exists($reportType, $reportTypes)) {
+            $reportType = 'fixed';
+        }
+
+        $employees = $this->employeeReportQuery($request)
+            ->orderBy('department_id')
+            ->orderBy('section_id')
+            ->orderBy('name')
+            ->get();
+
+        $departmentMap = collect($options['departments'])->pluck('name', 'id');
+        $sectionMap = collect($options['sections'])->pluck('name', 'id');
+        $subSectionMap = collect($options['subSections'])->pluck('name', 'id');
+        $designationMap = Designation::query()->pluck('name', 'id');
+        $lineMap = collect($options['lines'])->mapWithKeys(fn ($r) => [
+            $r->id => trim(($r->name ?? '') . (filled($r->slug ?? null) ? ' - ' . $r->slug : '')),
+        ]);
+
+        $fromMonth = Carbon::parse($from)->month;
+        $fromYear = Carbon::parse($from)->year;
+        $toMonth = Carbon::parse($to)->month;
+        $toYear = Carbon::parse($to)->year;
+
+        $salarySheets = \ME\Hr\Models\SalarySheet::query()
+            ->whereIn('user_id', $employees->pluck('id'))
+            ->where(function ($q) use ($fromYear, $fromMonth, $toYear, $toMonth) {
+                $q->whereRaw("(year > ? OR (year = ? AND month >= ?))", [$fromYear, $fromYear, $fromMonth])
+                    ->whereRaw("(year < ? OR (year = ? AND month <= ?))", [$toYear, $toYear, $toMonth]);
+            })
+            ->get()
+            ->groupBy('user_id');
+
+        return [
+            'request' => $request,
+            'employees' => $employees,
+            'salarySheets' => $salarySheets,
+            'from' => $from,
+            'to' => $to,
+            'reportType' => $reportType,
+            'reportTypes' => $reportTypes,
+            'departmentMap' => $departmentMap,
+            'sectionMap' => $sectionMap,
+            'subSectionMap' => $subSectionMap,
+            'designationMap' => $designationMap,
+            'lineMap' => $lineMap,
+            'withPicture' => $request->boolean('with_picture'),
+            'language' => $request->input('language', 'en'),
+            'fromLabel' => Carbon::parse($from)->format('d-M-Y'),
+            'toLabel' => Carbon::parse($to)->format('d-M-Y'),
+            'reportTypeLabel' => $reportTypes[$reportType],
+        ];
     }
 
     // ──────────────────────────────────────────────────────────────────
