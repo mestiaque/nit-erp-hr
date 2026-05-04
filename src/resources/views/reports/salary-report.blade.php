@@ -47,6 +47,22 @@
                         <input type="text" name="employee_ids" class="form-control form-control-sm" value="{{ $request->employee_ids }}" placeholder="B00144,B00145">
                     </div>
 
+                    <div class="col-md-3 mb-3" id="bonus-title-field" style="{{ $salaryReportType === 'bonus' ? '' : 'display:none;' }}">
+                        <label class="mb-1">Bonus Title <span class="text-danger">*</span></label>
+                        <select name="bonus_title" class="form-control form-control-sm">
+                            <option value="">-- Select Bonus Title --</option>
+                            @foreach($bonusTitles as $bt)
+                                <option value="{{ $bt->id }}" @selected((string)$request->bonus_title === (string)$bt->id)>{{ $bt->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 mb-3" id="bonus-upto-field" style="{{ $salaryReportType === 'bonus' ? '' : 'display:none;' }}">
+                        <label class="mb-1">Up To Date <small class="text-muted">(for job age calc)</small></label>
+                        <input type="date" name="up_to_date" class="form-control form-control-sm"
+                               value="{{ $request->up_to_date ?? date('Y-m-d') }}">
+                    </div>
+
                     <div class="col-md-3 mb-3">
                         <label class="mb-1">Department</label>
                         <select name="department" class="form-control form-control-sm">
@@ -183,3 +199,28 @@
     </div>
 </div>
 @endsection
+
+@push('js')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var reportTypeInput = document.querySelector('input[name="report_type"]');
+    var bonusTitleField = document.getElementById('bonus-title-field');
+    var bonusUptoField  = document.getElementById('bonus-upto-field');
+
+    function toggleBonusFields() {
+        var isBonus = reportTypeInput && reportTypeInput.value === 'bonus';
+        if (bonusTitleField) bonusTitleField.style.display = isBonus ? '' : 'none';
+        if (bonusUptoField)  bonusUptoField.style.display  = isBonus ? '' : 'none';
+    }
+
+    document.querySelectorAll('[data-report-type]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            if (reportTypeInput) reportTypeInput.value = el.dataset.reportType;
+            toggleBonusFields();
+        });
+    });
+
+    toggleBonusFields();
+});
+</script>
+@endpush

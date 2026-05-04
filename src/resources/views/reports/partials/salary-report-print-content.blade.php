@@ -51,6 +51,107 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 	$byDept = $employees->groupBy('department_id');
 	$employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
 	$isWagesSummary = ($salaryPrintMode ?? '') === 'wages';
+	$isBonus        = ($salaryPrintMode ?? '') === 'bonus';
+
+	$bonusPolicies  = collect();
+	$bonusTitle     = null;
+	$empBonus       = null;
+	if ($isBonus) {
+		$bonusTitleId = $request->input('bonus_title');
+		if (filled($bonusTitleId)) {
+			$bonusTitle   = \ME\Hr\Models\BonusTitle::find($bonusTitleId);
+			$bonusPolicies = \ME\Hr\Models\BonusPolicy::query()
+				->where('bonus_title_id', $bonusTitleId)
+				->where('status', 'active')
+				->get();
+			if ($bonusPolicies->isEmpty()) {
+				$bonusPolicies = \ME\Hr\Models\BonusPolicy::query()
+					->where('bonus_title_id', $bonusTitleId)
+					->get();
+			}
+		}
+
+		// Reference date: use up_to_date if provided, otherwise use $to
+		$bonusReferenceDate = \Carbon\Carbon::parse($request->input('up_to_date') ?: $to);
+
+		$empBonus = function ($emp) use ($bonusPolicies, $bonusReferenceDate) {
+			$sal            = hr_employee_salary($emp);
+			$gross          = (float) ($sal['gross'] ?? $emp->gross_salary ?? 0);
+			$basic          = (float) ($sal['basic'] ?? $emp->basic_salary ?? 0);
+			$productionBase = (float) ($sal['production_salary'] ?? $sal['production'] ?? $sal['total_production'] ?? 0);
+
+			$joiningDate   = $emp->joining_date ? \Carbon\Carbon::parse($emp->joining_date) : null;
+			$serviceMonths = $joiningDate
+				? max(0, (int) $joiningDate->diffInMonths($bonusReferenceDate, false))
+				: null;
+
+			$matchedPolicy = $bonusPolicies->filter(function ($policy) use ($emp, $serviceMonths) {
+				$designationMatch = !$policy->designation_id
+					|| (int) $policy->designation_id === (int) $emp->designation_id;
+				$sectionMatch = !$policy->section_id
+					|| (int) $policy->section_id === (int) $emp->section_id;
+
+				$monthFrom = is_null($policy->month_from) ? null : (int) $policy->month_from;
+				$monthTo   = is_null($policy->month_to)   ? null : (int) $policy->month_to;
+
+				$monthMatch = true;
+				if (!is_null($serviceMonths)) {
+					if (!is_null($monthFrom)) {
+						$monthMatch = $monthMatch && ($serviceMonths >= $monthFrom);
+					}
+					if (!is_null($monthTo)) {
+						$monthMatch = $monthMatch && ($serviceMonths <= $monthTo);
+					}
+				} elseif (!is_null($monthFrom) || !is_null($monthTo)) {
+					$monthMatch = false;
+				}
+
+				return $designationMatch && $sectionMatch && $monthMatch;
+			})->sortByDesc(function ($policy) {
+				return (is_null($policy->designation_id) ? 0 : 4)
+					+ (is_null($policy->section_id)      ? 0 : 2)
+					+ (is_null($policy->month_from)      ? 0 : 1)
+					+ (is_null($policy->month_to)        ? 0 : 1);
+			})->first();
+
+			$bonus       = 0.0;
+			$policyLabel = '—';
+			$percent     = null;
+
+			if ($matchedPolicy) {
+				$amountType  = strtolower($matchedPolicy->amount_type  ?? 'percent');
+				$salaryBasis = strtolower($matchedPolicy->salary_basis ?? 'gross');
+				$base = match ($salaryBasis) {
+					'basic'      => $basic,
+					'production' => $productionBase,
+					default      => $gross,
+				};
+				if ($amountType === 'fixed') {
+					$bonus = (float) $matchedPolicy->amount;
+				} else {
+					$percent = (float) $matchedPolicy->amount;
+					$bonus   = round($base * $percent / 100, 2);
+				}
+				$policyLabel = $matchedPolicy->name . ($percent !== null ? " ({$percent}%)" : '');
+			}
+
+			$jobAge = 'N/A';
+			if ($joiningDate) {
+				$diff   = $joiningDate->diff($bonusReferenceDate);
+				$jobAge = sprintf('%dy %dm %dd', $diff->y, $diff->m, $diff->d);
+			}
+
+			return [
+				'bonus'        => $bonus,
+				'basic'        => $basic,
+				'gross'        => $gross,
+				'policy'       => $matchedPolicy,
+				'policy_label' => $policyLabel,
+				'job_age'      => $jobAge,
+				'percent'      => $percent,
+			];
+		};
+	}
 
 	$hrOptions = \App\Services\HrOptionsService::getOptions();
 	$departmentMap = collect($hrOptions['departments'])->pluck('name', 'id');
@@ -312,6 +413,155 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 		</div>
 		<div class="rpt-footer-note">This is a system-generated report. &mdash; {{ $company }} &mdash; Confidential</div>
 	</div>
+@elseif($isBonus)
+	@if(!filled($request->input('bonus_title')))
+		<div style="padding:20px;text-align:center;color:#888;">Please select a Bonus Title to generate the bonus salary report.</div>
+	@elseif($bonusPolicies->isEmpty())
+		<div style="padding:20px;text-align:center;color:#888;">No bonus policies found for the selected Bonus Title.</div>
+	@else
+		@php
+			$bonusGrandTotal = 0;
+			$bonusGrandEmp   = 0;
+			$hasPctPolicy    = false;
+			$bonusByDept     = [];
+			foreach ($byDept as $deptId => $deptEmps) {
+				$rows = [];
+				foreach ($deptEmps as $emp) {
+					$bd = $empBonus($emp);
+					if ($bd['policy'] === null) continue; // skip employees with no matching policy
+					$rows[]           = ['emp' => $emp, 'bd' => $bd];
+					$bonusGrandTotal += $bd['bonus'];
+					$bonusGrandEmp++;
+					if ($bd['percent'] !== null) $hasPctPolicy = true;
+				}
+				if (!empty($rows)) {
+					$bonusByDept[$deptId] = $rows;
+				}
+			}
+		@endphp
+
+		<div class="stat-bar">
+			<div class="stat-box">
+				<span class="val">{{ $bonusGrandEmp }}</span>
+				<span class="lbl">Total Employees</span>
+			</div>
+			<div class="stat-box">
+				<span class="val">{{ $fmt($bonusGrandTotal) }}</span>
+				<span class="lbl">Total Bonus Amount</span>
+			</div>
+			<div class="stat-box">
+				<span class="val">{{ $bonusPolicies->count() }}</span>
+				<span class="lbl">Active Policies</span>
+			</div>
+			@if($bonusTitle)
+			<div class="stat-box">
+				<span class="val" style="font-size:11px;">{{ $bonusTitle->title }}</span>
+				<span class="lbl">Bonus Title</span>
+			</div>
+			@endif
+		</div>
+
+		@forelse($bonusByDept as $deptId => $deptRows)
+			@php
+				$deptBonusTotal = collect($deptRows)->sum(fn ($r) => $r['bd']['bonus']);
+				$sl = 1;
+			@endphp
+			<div class="dept-title">&nbsp;Department: {{ $departmentMap->get($deptId, 'N/A') }}</div>
+			<table class="t">
+				<thead>
+					<tr class="hdr1">
+						<th>SL</th>
+						@if($withPicture)<th>Photo</th>@endif
+						<th>Emp. ID</th>
+						<th>Name</th>
+						<th>Designation</th>
+						<th>Section</th>
+						<th>Join Date</th>
+						<th>Job Age</th>
+						@if($hasPctPolicy)
+							<th>Gross</th>
+							<th>Basic</th>
+						@endif
+						<th>Matched Policy</th>
+						<th>Bonus Amount</th>
+						<th>Stamp</th>
+						<th>Signature</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach($deptRows as $row)
+						@php
+							$employee = $row['emp'];
+							$bd       = $row['bd'];
+						@endphp
+						<tr>
+							<td class="tc">{{ $sl++ }}</td>
+							@if($withPicture)
+								<td class="tc photo-cell">
+									@if($employee->photo)
+										<img src="{{ asset('storage/' . $employee->photo) }}" alt="">
+									@else
+										—
+									@endif
+								</td>
+							@endif
+							<td>{{ $employee->employee_id }}</td>
+							<td>{{ $language === 'bn' && $employee->bn_name ? $employee->bn_name : $employee->name }}</td>
+							<td>{{ $designationMap->get($employee->designation_id, 'N/A') }}</td>
+							<td>{{ $sectionMap->get($employee->section_id, 'N/A') }}</td>
+							<td class="tc">{{ optional($employee->joining_date)->format('d-M-y') ?? '-' }}</td>
+							<td class="tc">{{ $bd['job_age'] }}</td>
+							@if($hasPctPolicy)
+								<td class="tr">{{ $fmt($bd['gross']) }}</td>
+								<td class="tr">{{ $fmt($bd['basic']) }}</td>
+							@endif
+							<td class="tl">{{ $bd['policy_label'] }}</td>
+							<td class="tr">{{ $fmt($bd['bonus']) }}</td>
+							<td></td>
+							<td></td>
+						</tr>
+					@endforeach
+					@php
+						// total cols = SL(1) + [photo] + EmpID + Name + Desig + Section + JoinDate + JobAge + [Gross+Basic] + Policy + BonusAmt + Stamp + Sig
+						$totalCols    = ($withPicture ? 12 : 11) + ($hasPctPolicy ? 2 : 0);
+						$totalColspan = $totalCols - 3; // leave Bonus Amount, Stamp, Signature
+					@endphp
+					<tr class="summary-row">
+						<td colspan="{{ $totalColspan }}" class="tr">Dept. Bonus Total:</td>
+						<td class="tr">{{ $fmt($deptBonusTotal) }}</td>
+						<td></td>
+						<td></td>
+					</tr>
+				</tbody>
+			</table>
+		@empty
+			<p>No employees matched any bonus policy.</p>
+		@endforelse
+
+		@if(!empty($bonusByDept))
+		<table class="t" style="margin-top:0;">
+			<tfoot>
+				<tr class="grand-total">
+					<td colspan="{{ ($withPicture ? 12 : 11) + ($hasPctPolicy ? 2 : 0) - 1 }}" class="tr">
+						GRAND TOTAL &mdash; {{ $bonusGrandEmp }} Employees
+					</td>
+					<td class="tr">{{ $fmt($bonusGrandTotal) }}</td>
+				</tr>
+			</tfoot>
+		</table>
+		@endif
+
+		<div class="rpt-footer">
+			<div class="sig-row">
+				<div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Prepared By</div></div>
+				<div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Checked By</div></div>
+				<div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">HR Manager</div></div>
+				<div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Accounts Manager</div></div>
+				<div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Managing Director</div></div>
+			</div>
+			<div class="rpt-footer-note">This is a system-generated report. &mdash; {{ $company }} &mdash; Confidential</div>
+		</div>
+	@endif
 @else
 	@forelse($byDept as $deptId => $deptEmps)
 		<div class="dept-title">&nbsp;Department: {{ $departmentMap->get($deptId, 'N/A') }}</div>
