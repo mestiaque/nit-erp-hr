@@ -253,7 +253,7 @@ class HrReportController extends Controller
         $departmentMap = collect($options['departments'] ?? [])->pluck('name', 'id');
         $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
         $designationMap = collect($options['designations'] ?? [])->pluck('name', 'id');
-        $gradeMap = Attribute::query()->pluck('name', 'id');
+        $gradeMap = Attribute::query()->where('type', 28)->where('status', '<>', 'temp')->pluck('name', 'id');
 
         $rows = $employees
             ->filter(function (User $employee) use ($request) {
@@ -350,7 +350,7 @@ class HrReportController extends Controller
                 return true;
             })
             ->map(function (User $employee) use ($departmentMap, $sectionMap, $designationMap) {
-                $other = $employee->other_information;
+                $other = is_array($employee->other_information) ? $employee->other_information : [];
                 $status = (string) ($employee->employment_status ?? 'N/A');
 
                 return [
@@ -360,7 +360,7 @@ class HrReportController extends Controller
                     'section' => $sectionMap->get($employee->section_id, 'N/A'),
                     'designation' => $designationMap->get($employee->designation_id, 'N/A'),
                     'migration_type' => ucfirst($status),
-                    'migration_date' => $employee->exited_at,
+                    'migration_date' => !blank($employee->exited_at) ? \Carbon\Carbon::parse($employee->exited_at)->format('d-M-Y') : 'N/A',
                     'remarks' => data_get($other, 'resign_info.remarks', ''),
                 ];
             })
@@ -375,37 +375,45 @@ class HrReportController extends Controller
         $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
         $designationMap = collect($options['designations'] ?? [])->pluck('name', 'id');
 
+        $from = $request->filled('from')
+            ? \Carbon\Carbon::parse($request->from)->startOfDay()
+            : now()->startOfMonth()->startOfDay();
+        $to = $request->filled('to')
+            ? \Carbon\Carbon::parse($request->to)->endOfDay()
+            : now()->endOfDay();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        $periodDates = collect(\Carbon\CarbonPeriod::create($from->copy()->startOfDay(), '1 day', $to->copy()->startOfDay()))
+            ->map(fn ($date) => $date->format('Y-m-d'))
+            ->values();
+
+        $employeeIds = $employees->pluck('id')->values();
+        $attendanceByUser = collect();
+        if ($employeeIds->isNotEmpty()) {
+            $attendanceByUser = \ME\Hr\Models\Attendance::query()
+                ->whereIn('user_id', $employeeIds->all())
+                ->whereDate('date', '>=', $from->toDateString())
+                ->whereDate('date', '<=', $to->toDateString())
+                ->selectRaw('user_id, DATE(`date`) as att_date')
+                ->get()
+                ->groupBy('user_id')
+                ->map(fn ($rows) => $rows->pluck('att_date')->unique()->values());
+        }
+
         $rows = $employees
-            ->map(function (User $employee) {
-                $other = $employee->other_information;
-                $absentDate = data_get($other, 'final_settlement.absent_date');
+            ->map(function (User $employee) use ($attendanceByUser, $periodDates, $departmentMap, $sectionMap, $designationMap) {
+                $presentDates = collect($attendanceByUser->get($employee->id, []))->map(fn ($d) => (string) $d);
+                $missingDates = $periodDates->diff($presentDates)->values();
 
-                return [
-                    'employee' => $employee,
-                    'absent_date' => $absentDate,
-                    'remarks' => data_get($other, 'resign_info.remarks', data_get($other, 'final_settlement.remarks', '')),
-                ];
-            })
-            ->filter(function ($row) use ($request) {
-                if (blank($row['absent_date'])) {
-                    return false;
+                if ($missingDates->isEmpty()) {
+                    return null;
                 }
 
-                $date = \Carbon\Carbon::parse($row['absent_date']);
-                if ($request->filled('from') && $date->lt(\Carbon\Carbon::parse($request->from)->startOfDay())) {
-                    return false;
-                }
-                if ($request->filled('to') && $date->gt(\Carbon\Carbon::parse($request->to)->endOfDay())) {
-                    return false;
-                }
-
-                return true;
-            })
-            ->map(function ($row) use ($departmentMap, $sectionMap, $designationMap, $request) {
-                /** @var User $employee */
-                $employee = $row['employee'];
-                $absentDate = \Carbon\Carbon::parse($row['absent_date']);
-                $endDate = $request->filled('to') ? \Carbon\Carbon::parse($request->to) : now();
+                $other = is_array($employee->other_information) ? $employee->other_information : [];
+                $firstMissing = \Carbon\Carbon::parse($missingDates->first())->format('d-M-Y');
 
                 return [
                     'employee_id' => $employee->employee_id,
@@ -414,11 +422,12 @@ class HrReportController extends Controller
                     'designation' => $designationMap->get($employee->designation_id, 'N/A'),
                     'department' => $departmentMap->get($employee->department_id, 'N/A'),
                     'section' => $sectionMap->get($employee->section_id, 'N/A'),
-                    'absent_days' => max(0, $absentDate->diffInDays($endDate)),
-                    'absent_date' => $absentDate->format('d-M-Y'),
-                    'remarks' => $row['remarks'] ?: 'N/A',
+                    'absent_days' => $missingDates->count(),
+                    'absent_date' => $firstMissing,
+                    'remarks' => data_get($other, 'resign_info.remarks', 'Attendance not found for selected days'),
                 ];
             })
+            ->filter()
             ->values();
 
         return ['rows' => $rows];
@@ -434,7 +443,7 @@ class HrReportController extends Controller
         $lineMap = collect($options['lines'] ?? [])->mapWithKeys(fn ($row) => [
             $row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : '')),
         ]);
-        $gradeMap = Attribute::query()->pluck('name', 'id');
+        $gradeMap = Attribute::query()->where('type', 28)->where('status', '<>', 'temp')->pluck('name', 'id');
 
         $rows = $employees
             ->map(function (User $employee) use ($incrementMap, $request) {
@@ -707,37 +716,68 @@ class HrReportController extends Controller
         $rows = collect();
         $serial = 1;
         foreach ($employees as $employee) {
-            $other = $employee->other_information;
+            // Parse other_information JSON
+            $other = is_array($employee->other_information)
+                ? $employee->other_information
+                : json_decode($employee->other_information ?? '{}', true);
+
+            // profile: working_place_id, sub_section_id, weekend, etc.
+            $profile = data_get($other, 'profile', []);
+
+            // salary_info: bank_or_phone, car_fuel, phone_internet, extra_facility, tax
+            $salaryInfo = data_get($other, 'salary_info', []);
+
+            $dobRaw = data_get($employee, 'dob') ?: data_get($employee, 'date_of_birth');
+            $dob = 'N/A';
+            $age = 'N/A';
+            if (filled($dobRaw)) {
+                try {
+                    $dobDate = \Carbon\Carbon::parse($dobRaw);
+                    $dob = $dobDate->format('d-M-Y');
+                    $age = (string) $dobDate->age;
+                } catch (\Throwable $e) {
+                    $dob = (string) $dobRaw;
+                }
+            }
+
+            $jobAge = 'N/A';
+            if (filled($employee->joining_date)) {
+                try {
+                    $joinDate = \Carbon\Carbon::parse($employee->joining_date);
+                    $diff = $joinDate->diff(now());
+                    $jobAge = sprintf('%dy %dm %dd', $diff->y, $diff->m, $diff->d);
+                } catch (\Throwable $e) {
+                    $jobAge = 'N/A';
+                }
+            }
+
             $rows->push([
-                'sl' => $serial++,
-                'working_place' => $workingPlaceMap->get($employee->working_place_id, 'N/A'),
-                'name' => $employee->name,
-                'employee_id' => $employee->employee_id,
-                'join_date' => $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d-M-Y') : 'N/A',
-                'gross_salary' => (float) ($employee->gross_salary ?? 0),
-                'pay_mode' => $employee->salary_type ?? 'N/A',
-                'bank_mobile_no' => $employee->bank_account_no ?? $employee->mobile ?? 'N/A',
-                'car_fuel' => $employee->car_fuel ?? '0.00',
-                'phone_internet' => $employee->phone_internet ?? '0.00',
-                'extra_facility' => $employee->extra_facility ?? '0.00',
-                'tax' => $employee->tax ?? '0.00',
-                'classification' => $classificationMap->get($employee->employee_type, 'N/A'),
-                'department' => $departmentMap->get($employee->department_id, 'N/A'),
-                'section' => $sectionMap->get($employee->section_id, 'N/A'),
-                'sub_section' => $subSectionMap->get($employee->sub_section_id, 'N/A'),
-                'line_block' => $lineMap->get($employee->line_number, 'N/A'),
-                'designation' => $designationMap->get($employee->designation_id, 'N/A'),
-                'grade' => $gradeMap->get($employee->grade_lavel, 'N/A'),
-                'shift' => $shiftMap->get($employee->shift_id, 'N/A'),
-                'weekend' => $employee->weekend ?? 'N/A',
-                'personal_contact_no' => $employee->personal_contact_no ?? 'N/A',
-                'emergency_contact_no' => $employee->emergency_contact_no ?? 'N/A',
-                'father_name' => $employee->father_name ?? 'N/A',
-                'mother_name' => $employee->mother_name ?? 'N/A',
-                'marital_status' => $employee->marital_status ?? 'N/A',
-                'spouse_name' => $employee->spouse_name ?? 'N/A',
-                'sex' => $employee->gender ?? 'N/A',
-                'kids' => $employee->kids ?? 'N/A',
+                'sl'               => $serial++,
+                'working_place'    => $workingPlaceMap->get(data_get($profile, 'working_place_id') ?? $employee->working_place_id, 'N/A'),
+                'name'             => $employee->name,
+                'employee_id'      => $employee->employee_id,
+                'join_date'        => $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d-M-Y') : 'N/A',
+                'job_age'          => $jobAge,
+                'dob'              => $dob,
+                'age'              => $age,
+                'gross_salary'     => (float) ($employee->gross_salary ?? 0),
+                'pay_mode'         => $employee->salary_type ?? 'N/A',
+                'bank_mobile_no'   => data_get($salaryInfo, 'bank_or_phone', $employee->mobile ?? 'N/A'),
+                'car_fuel'         => (float) data_get($salaryInfo, 'car_fuel', 0),
+                'phone_internet'   => (float) data_get($salaryInfo, 'phone_internet', 0),
+                'extra_facility'   => (float) data_get($salaryInfo, 'extra_facility', 0),
+                'tax'              => (float) data_get($salaryInfo, 'tax', 0),
+                'classification'   => $classificationMap->get($employee->employee_type, 'N/A'),
+                'department'       => $departmentMap->get($employee->department_id, 'N/A'),
+                'section'          => $sectionMap->get($employee->section_id, 'N/A'),
+                'sub_section'      => $subSectionMap->get($employee->sub_section_id ?? data_get($profile, 'sub_section_id'), 'N/A'),
+                'line_block'       => $lineMap->get($employee->line_number, 'N/A'),
+                'designation'      => $designationMap->get($employee->designation_id, 'N/A'),
+                'grade'            => $gradeMap->get($employee->grade_lavel, 'N/A'),
+                'shift'            => $shiftMap->get($employee->shift_id, 'N/A'),
+                'weekend'          => data_get($profile, 'weekend', $employee->weekend ?? 'N/A'),
+                'contact_no'       => $employee->mobile ?? 'N/A',
+                'sex'              => $employee->gender ?? 'N/A',
             ]);
         }
         return $rows;
@@ -850,7 +890,9 @@ class HrReportController extends Controller
             'sections' => Attribute::where('type', 29)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'subSections' => SubSection::orderBy('name')->get(['id', 'name', 'department_id', 'section_id', 'salary_type', 'approve_man_power']),
             'lines' => Attribute::where('type', 4)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name', 'slug']),
-            'designations' => Attribute::where('type', 2)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
+            'designations' => Schema::hasTable((new Designation())->getTable())
+                ? Designation::query()->orderBy('name')->get(['id', 'name'])
+                : Attribute::where('type', 2)->where('status', '<>', 'temp')->orderBy('name')->get(['id', 'name']),
             'workingPlaces' => WorkingPlace::orderBy('name')->get(['id', 'name']),
             'shifts' => Shift::orderBy('name_of_shift')->get(['id', 'name_of_shift']),
             'gender' => $genderOptions,
@@ -886,16 +928,29 @@ class HrReportController extends Controller
 
         $employees
             ->groupBy(function (User $employee) {
+                // sub_section_id is stored in other_information['profile'], not a direct column
+                $other = is_array($employee->other_information)
+                    ? $employee->other_information
+                    : json_decode($employee->other_information ?? '{}', true);
+                $subSectionId = data_get($other, 'profile.sub_section_id') ?? $employee->sub_section_id;
+
                 return implode('|', [
                     $employee->department_id,
                     $employee->section_id,
-                    $employee->sub_section_id,
+                    $subSectionId,
                 ]);
             })
             ->each(function ($subSectionGroup) use (&$rows, &$serial, &$grandApprove, &$grandRecruited, &$grandGrossSalary, $departmentMap, $sectionMap, $subSectionMap, $designationMap) {
                 /** @var User $subSectionFirst */
                 $subSectionFirst = $subSectionGroup->first();
-                $subSection = $subSectionMap->get($subSectionFirst->sub_section_id);
+
+                // Resolve sub_section_id from profile (not a direct column)
+                $subSectionFirstOther = is_array($subSectionFirst->other_information)
+                    ? $subSectionFirst->other_information
+                    : json_decode($subSectionFirst->other_information ?? '{}', true);
+                $subSectionId = data_get($subSectionFirstOther, 'profile.sub_section_id') ?? $subSectionFirst->sub_section_id;
+
+                $subSection = $subSectionMap->get($subSectionId);
                 $subSectionApprove = (int) ($subSection->approve_man_power ?? 0);
                 $subSectionRecruited = 0;
                 $subSectionGrossSalary = 0;
@@ -1112,16 +1167,27 @@ class HrReportController extends Controller
             return $map;
         }
 
+        $userIds = $employees->pluck('id')->all();
+        if (empty($userIds)) {
+            return $map;
+        }
+
+        $sortCol = Schema::hasColumn($table, 'increment_date') ? 'increment_date' : 'created_at';
+        $idCol   = Schema::hasColumn($table, 'user_id') ? 'user_id'
+            : (Schema::hasColumn($table, 'employee_id') ? 'employee_id' : null);
+
+        if (!$idCol) {
+            return $map;
+        }
+
+        $grouped = EmployeeIncrement::query()
+            ->whereIn($idCol, $userIds)
+            ->orderBy($sortCol, 'desc')
+            ->get()
+            ->groupBy($idCol);
+
         foreach ($employees as $employee) {
-            $query = EmployeeIncrement::query();
-            if (Schema::hasColumn($table, 'user_id')) {
-                $query->where('user_id', $employee->id);
-            } elseif (Schema::hasColumn($table, 'employee_id')) {
-                $query->where('employee_id', $employee->id);
-            } else {
-                continue;
-            }
-            $map[$employee->id] = $query->latest()->first();
+            $map[$employee->id] = $grouped->get($employee->id)?->first();
         }
 
         return $map;

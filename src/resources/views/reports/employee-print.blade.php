@@ -64,30 +64,24 @@
 
 @section('contents')
 @php
+    // Bangla/English toggle helpers
     $isBangla = $language === 'bn';
     $t = fn ($bn, $en) => $isBangla ? $bn : $en;
+    // Option maps — built from $options passed by controller
     $classificationMap = collect($options['classifications'] ?? [])->pluck('name', 'id');
-    $departmentMap = collect($options['departments'] ?? [])->pluck('name', 'id');
-    $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
-    $subSectionMap = collect($options['subSections'] ?? [])->keyBy('id');
-    $designationMap = collect($options['designations'] ?? [])->pluck('name', 'id');
-    $workingPlaceMap = collect($options['workingPlaces'] ?? [])->pluck('name', 'id');
-    $shiftMap = collect($options['shifts'] ?? [])->pluck('name_of_shift', 'id');
-    $lineMap = collect($options['lines'] ?? [])->mapWithKeys(fn ($row) => [
-        $row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : '')),
-    ]);
-    $gradeMap = \App\Models\Attribute::query()
-        ->whereIn('id', $employees->pluck('grade_lavel')->filter()->unique()->values())
-        ->pluck('name', 'id');
+    $departmentMap     = collect($options['departments'] ?? [])->pluck('name', 'id');
+    $sectionMap        = collect($options['sections'] ?? [])->pluck('name', 'id');
+    $subSectionMap     = collect($options['subSections'] ?? [])->keyBy('id');
+    $designationMap    = collect($options['designations'] ?? [])->pluck('name', 'id');
+    $workingPlaceMap   = collect($options['workingPlaces'] ?? [])->pluck('name', 'id');
+    $shiftMap          = collect($options['shifts'] ?? [])->pluck('name_of_shift', 'id');
+    $lineMap           = collect($options['lines'] ?? [])->mapWithKeys(
+        fn ($row) => [$row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : ''))]
+    );
+    $gradeMap = \App\Models\Attribute::query()->where('type', 28)->where('status', '<>', 'temp')->pluck('name', 'id');
     $fmtDate = function ($value) {
-        if (blank($value)) {
-            return 'N/A';
-        }
-        try {
-            return \Illuminate\Support\Carbon::parse($value)->format('d-m-Y');
-        } catch (\Throwable $e) {
-            return (string) $value;
-        }
+        if (blank($value)) return 'N/A';
+        try { return \Carbon\Carbon::parse($value)->format('d-m-Y'); } catch (\Throwable $e) { return (string) $value; }
     };
     $fmtMoney = fn ($value) => number_format((float) $value, 2);
 @endphp
@@ -217,13 +211,14 @@
         <tbody>
             @forelse($employees as $employee)
                 @php
-                    $other = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information, true);
-                    $profile = is_array($other) ? data_get($other, 'profile', []) : [];
-                    $nominee = is_array($other) ? data_get($other, 'nominee_info', []) : [];
-                    $subSection = $subSectionMap->get($employee->sub_section_id ?? data_get($profile, 'sub_section_id'));
-                    $workingPlace = $workingPlaceMap->get($employee->working_place_id ?? data_get($profile, 'working_place_id'), 'N/A');
-                    $line = $lineMap->get($employee->line_number, 'N/A');
-                    $weekend = $employee->weekend ?? data_get($profile, 'weekend', 'N/A');
+                    $other      = is_array($employee->other_information) ? $employee->other_information : json_decode($employee->other_information ?? '{}', true);
+                    $profile    = data_get($other, 'profile', []);
+                    $salaryInfo = data_get($other, 'salary_info', []);
+                    $nominee    = data_get($other, 'nominee_info', []);
+                    $subSection   = $subSectionMap->get($employee->sub_section_id ?? data_get($profile, 'sub_section_id'));
+                    $workingPlace = $workingPlaceMap->get(data_get($profile, 'working_place_id') ?? $employee->working_place_id, 'N/A');
+                    $line         = $lineMap->get($employee->line_number, 'N/A');
+                    $weekend      = data_get($profile, 'weekend', $employee->weekend ?? 'N/A');
                 @endphp
                 <tr class="{{ $loop->odd ? 'database-row-odd' : 'database-row-even' }}">
                     <td class="text-center">{{ $loop->iteration }}</td>
@@ -233,11 +228,11 @@
                     <td>{{ $fmtDate($employee->joining_date) }}</td>
                     <td class="text-right">{{ $fmtMoney($employee->gross_salary) }}</td>
                     <td>{{ $employee->salary_type ?? 'N/A' }}</td>
-                    <td>{{ $employee->bank_or_phone ?? 'N/A' }}</td>
-                    <td class="text-right">{{ $fmtMoney($employee->car_fuel) }}</td>
-                    <td class="text-right">{{ $fmtMoney($employee->phone_internet) }}</td>
-                    <td class="text-right">{{ $fmtMoney($employee->extra_facility) }}</td>
-                    <td class="text-right">{{ $fmtMoney($employee->tax) }}</td>
+                    <td>{{ data_get($salaryInfo, 'bank_or_phone', 'N/A') }}</td>
+                    <td class="text-right">{{ $fmtMoney(data_get($salaryInfo, 'car_fuel', 0)) }}</td>
+                    <td class="text-right">{{ $fmtMoney(data_get($salaryInfo, 'phone_internet', 0)) }}</td>
+                    <td class="text-right">{{ $fmtMoney(data_get($salaryInfo, 'extra_facility', 0)) }}</td>
+                    <td class="text-right">{{ $fmtMoney(data_get($salaryInfo, 'tax', 0)) }}</td>
                     <td>{{ $classificationMap->get($employee->employee_type, 'N/A') }}</td>
                     <td>{{ $departmentMap->get($employee->department_id, 'N/A') }}</td>
                     <td>{{ $sectionMap->get($employee->section_id, 'N/A') }}</td>
@@ -291,7 +286,7 @@
             @empty
                 <tr>
                     <td colspan="61" class="text-center">{{ $t('কোনো কর্মচারী পাওয়া যায়নি।', 'No employee found.') }}</td>
-                    
+
                 </tr>
             @endforelse
         </tbody>
