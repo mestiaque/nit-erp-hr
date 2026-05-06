@@ -1,4 +1,4 @@
-@extends('printMaster2')
+    @extends('printMaster2')
 
 @section('title', 'Employee Report - Database')
 
@@ -76,6 +76,16 @@
     };
     // Money formatter
     $fmtMoney = fn ($value) => number_format((float) $value, 2);
+    // Return first non-empty value from a list of candidates
+    $firstFilled = function (...$values) {
+        foreach ($values as $value) {
+            if (filled($value)) {
+                return $value;
+            }
+        }
+
+        return 'N/A';
+    };
 @endphp
 <div class="report-head text-center">
     <h3>{{ general()->title ?? 'Company Name' }}</h3>
@@ -177,12 +187,44 @@
 
                 // nominee_info: nominee address, nid, mobile, etc.
                 $nominee    = data_get($other, 'nominee_info', []);
+                $profileNested = data_get($profile, 'profile', []);
 
                 // Resolve IDs that are stored in profile (not direct columns)
                 $subSection   = $subSectionMap->get($employee->sub_section_id ?? data_get($profile, 'sub_section_id'));
                 $workingPlace = $workingPlaceMap->get(data_get($profile, 'working_place_id') ?? $employee->working_place_id, 'N/A');
                 $line         = $lineMap->get($employee->line_number, 'N/A');
                 $weekend      = data_get($profile, 'weekend', $employee->weekend ?? 'N/A');
+                $designationName = $firstFilled(
+                    $designationMap->get($employee->designation_id),
+                    $designationMap->get(data_get($profile, 'designation_id')),
+                    $designationMap->get(data_get($profileNested, 'designation_id')),
+                    data_get($employee, 'designation.name'),
+                    data_get($employee, 'designation_name'),
+                    data_get($profile, 'designation_name'),
+                    data_get($profileNested, 'designation_name')
+                );
+                $referenceDesignation = $firstFilled(
+                    $employee->reference_2,
+                    data_get($profile, 'reference_2'),
+                    data_get($profileNested, 'reference_2')
+                );
+                $referenceCardNo = $firstFilled(
+                    data_get($profile, 'reference_card_no'),
+                    data_get($profileNested, 'reference_card_no'),
+                    data_get($other, 'reference_card_no')
+                );
+                $referenceMobile = $firstFilled(
+                    data_get($profile, 'reference_mobile'),
+                    data_get($profileNested, 'reference_mobile'),
+                    data_get($other, 'reference_mobile')
+                );
+                $nomineeMobile = $firstFilled(
+                    data_get($nominee, 'nominee_mobile'),
+                    data_get($nominee, 'mobile'),
+                    data_get($nominee, 'nominee_info.nominee_mobile'),
+                    data_get($other, 'nominee_mobile'),
+                    data_get($other, 'nominee_info.nominee_mobile')
+                );
             @endphp
             <tr class="{{ $loop->odd ? 'database-row-odd' : 'database-row-even' }}">
                 <td class="text-center">{{ $loop->iteration }}</td>
@@ -202,7 +244,7 @@
                 <td>{{ $sectionMap->get($employee->section_id, 'N/A') }}</td>
                 <td>{{ data_get($subSection, 'name', 'N/A') }}</td>
                 <td>{{ $line }}</td>
-                <td>{{ $designationMap->get($employee->designation_id, 'N/A') }}</td>
+                <td>{{ $designationName }}</td>
                 <td>{{ $gradeMap->get($employee->grade_lavel, 'N/A') }}</td>
                 <td>{{ $shiftMap->get($employee->shift_id, 'N/A') }}</td>
                 <td>{{ $weekend }}</td>
@@ -227,9 +269,9 @@
                 <td>{{ data_get($profile, 'job_experience', $employee->job_experience ?? 'N/A') }}</td>
                 <td>{{ data_get($profile, 'prev_organization', 'N/A') }}</td>
                 <td>{{ $employee->reference_1 ?? 'N/A' }}</td>
-                <td>{{ $employee->reference_2 ?? 'N/A' }}</td>
-                <td>{{ data_get($profile, 'reference_card_no', 'N/A') }}</td>
-                <td>{{ data_get($profile, 'reference_mobile', 'N/A') }}</td>
+                <td>{{ $referenceDesignation }}</td>
+                <td>{{ $referenceCardNo }}</td>
+                <td>{{ $referenceMobile }}</td>
                 <td>{{ $employee->permanent_district ?? 'N/A' }}</td>
                 <td>{{ $employee->permanent_upazila ?? 'N/A' }}</td>
                 <td>{{ $employee->permanent_post_office ?? 'N/A' }}</td>
@@ -243,7 +285,7 @@
                 <td>{{ data_get($nominee, 'nominee_post_office', 'N/A') }}</td>
                 <td>{{ data_get($nominee, 'nominee_village', 'N/A') }}</td>
                 <td>{{ data_get($nominee, 'nominee_nid', 'N/A') }}</td>
-                <td>{{ data_get($nominee, 'nominee_mobile', 'N/A') }}</td>
+                <td>{{ $nomineeMobile }}</td>
                 <td>{{ $employee->nominee_relation ?? 'N/A' }}</td>
                 <td>{{ $employee->nominee_age ?? 'N/A' }}</td>
             </tr>
