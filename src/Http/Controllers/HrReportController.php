@@ -476,8 +476,14 @@ class HrReportController extends Controller
                 $employee = $item['employee'];
                 $increment = $item['increment'];
 
-                $other = $employee->other_information;
-                $profile = is_array($other) ? data_get($other, 'profile', []) : [];
+                $other = is_array($employee->other_information)
+                    ? $employee->other_information
+                    : json_decode($employee->other_information ?? '{}', true);
+                $profile = data_get($other, 'profile', []);
+                $profileNested = data_get($profile, 'profile', []);
+                $subSectionId = $employee->sub_section_id
+                    ?? data_get($profile, 'sub_section_id')
+                    ?? data_get($profileNested, 'sub_section_id');
                 $grossSalary = (float) ($employee->gross_salary ?? 0);
 
                 $lastIncValue = (float) data_get($increment, 'increment_amount', data_get($increment, 'gross_increment_amount', data_get($increment, 'amount', 0)));
@@ -528,7 +534,7 @@ class HrReportController extends Controller
                     'service_length' => $serviceLength,
                     'department' => $departmentMap->get($employee->department_id, 'N/A'),
                     'section' => $sectionMap->get($employee->section_id, 'N/A'),
-                    'sub_section' => $subSectionMap->get($employee->sub_section_id ?? data_get($profile, 'sub_section_id'), 'N/A'),
+                    'sub_section' => $subSectionMap->get($subSectionId, 'N/A'),
                     'designation' => $designationMap->get($employee->designation_id, 'N/A'),
                     'grade' => $gradeMap->get($employee->grade_lavel, 'N/A'),
                     'classification' => $classificationMap->get($employee->employee_type, 'N/A'),
