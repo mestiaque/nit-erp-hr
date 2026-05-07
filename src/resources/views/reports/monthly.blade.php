@@ -92,6 +92,10 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="col-md-3 mb-3" id="minAbsentDaysWrap" style="display:none;">
+                        <label class="mb-1">Min. Consecutive Absent Days</label>
+                        <input type="number" min="1" name="min_absent_days" class="form-control form-control-sm" value="{{ $request->input('min_absent_days', 3) }}" placeholder="3">
+                    </div>
                     <div class="col-md-3 mb-3" id="incrementPercentWrap" style="display:none;">
                         <label class="mb-1">Increment %</label>
                         <input type="number" step="0.01" min="0" name="increment_percent" class="form-control form-control-sm" value="{{ $incrementPercent }}">
@@ -122,15 +126,20 @@
         const reportTypeEl = document.getElementById('monthlyReportType');
         const incrementWrap = document.getElementById('incrementPercentWrap');
         const effectiveWrap = document.getElementById('effectiveDateWrap');
+        const minAbsentWrap = document.getElementById('minAbsentDaysWrap');
 
         function toggleIncrementFields() {
             const value = reportTypeEl ? reportTypeEl.value : '';
-            const show = value === 'increment' || value === 'increment-summary';
+            const showIncrement = value === 'increment' || value === 'increment-summary';
+            const showLongAbsent = value === 'long-absent';
             if (incrementWrap) {
-                incrementWrap.style.display = show ? 'block' : 'none';
+                incrementWrap.style.display = showIncrement ? 'block' : 'none';
             }
             if (effectiveWrap) {
-                effectiveWrap.style.display = show ? 'block' : 'none';
+                effectiveWrap.style.display = showIncrement ? 'block' : 'none';
+            }
+            if (minAbsentWrap) {
+                minAbsentWrap.style.display = showLongAbsent ? 'block' : 'none';
             }
         }
 

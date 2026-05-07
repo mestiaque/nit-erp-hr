@@ -386,8 +386,38 @@ class HrReportController extends Controller
             [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
         }
 
+        // Build holiday date set for the period (for O(1) lookup)
+        $holidayDateSet = [];
+        try {
+            $holidays = \ME\Hr\Models\Holiday::query()
+                ->where(function ($q) use ($from, $to) {
+                    $q->whereBetween('from_date', [$from->toDateString(), $to->toDateString()])
+                      ->orWhereBetween('to_date', [$from->toDateString(), $to->toDateString()])
+                      ->orWhere(function ($q2) use ($from, $to) {
+                          $q2->where('from_date', '<=', $from->toDateString())
+                             ->where('to_date', '>=', $to->toDateString());
+                      });
+                })
+                ->get(['from_date', 'to_date']);
+
+            $allHolidayDates = $holidays->flatMap(function ($holiday) {
+                $start = \Carbon\Carbon::parse($holiday->from_date);
+                $end = blank($holiday->to_date) ? $start->copy() : \Carbon\Carbon::parse($holiday->to_date);
+                return collect(\Carbon\CarbonPeriod::create($start->startOfDay(), '1 day', $end->startOfDay()))
+                    ->map(fn ($d) => $d->format('Y-m-d'))
+                    ->all();
+            })->unique()->toArray();
+
+            $holidayDateSet = array_flip($allHolidayDates);
+        } catch (\Throwable $e) {
+            // Holiday table may not exist; proceed without holiday exclusion
+        }
+
+        // Build working day period: exclude Fridays and holidays
         $periodDates = collect(\Carbon\CarbonPeriod::create($from->copy()->startOfDay(), '1 day', $to->copy()->startOfDay()))
             ->map(fn ($date) => $date->format('Y-m-d'))
+            ->filter(fn ($date) => \Carbon\Carbon::parse($date)->dayOfWeek !== \Carbon\Carbon::FRIDAY)
+            ->filter(fn ($date) => !isset($holidayDateSet[$date]))
             ->values();
 
         $employeeIds = $employees->pluck('id')->values();
@@ -400,20 +430,43 @@ class HrReportController extends Controller
                 ->selectRaw('user_id, DATE(`date`) as att_date')
                 ->get()
                 ->groupBy('user_id')
-                ->map(fn ($rows) => $rows->pluck('att_date')->unique()->values());
+                ->map(fn ($rows) => array_flip($rows->pluck('att_date')->unique()->toArray()));
         }
 
-        $rows = $employees
-            ->map(function (User $employee) use ($attendanceByUser, $periodDates, $departmentMap, $sectionMap, $designationMap) {
-                $presentDates = collect($attendanceByUser->get($employee->id, []))->map(fn ($d) => (string) $d);
-                $missingDates = $periodDates->diff($presentDates)->values();
+        // Minimum consecutive absent working-days to qualify as "long absent"
+        $minConsecutive = max(1, (int) $request->input('min_absent_days', 3));
 
-                if ($missingDates->isEmpty()) {
+        $rows = $employees
+            ->map(function (User $employee) use ($attendanceByUser, $periodDates, $departmentMap, $sectionMap, $designationMap, $minConsecutive) {
+                $presentSet = $attendanceByUser->get($employee->id, []);
+
+                // Find the longest consecutive absent streak among working days
+                $longestStreak = [];
+                $currentStreak = [];
+
+                foreach ($periodDates as $date) {
+                    if (!isset($presentSet[$date])) {
+                        $currentStreak[] = $date;
+                    } else {
+                        if (count($currentStreak) > count($longestStreak)) {
+                            $longestStreak = $currentStreak;
+                        }
+                        $currentStreak = [];
+                    }
+                }
+                if (count($currentStreak) > count($longestStreak)) {
+                    $longestStreak = $currentStreak;
+                }
+
+                if (count($longestStreak) < $minConsecutive) {
                     return null;
                 }
 
+                $firstDate = \Carbon\Carbon::parse($longestStreak[0])->format('d-M-Y');
+                $lastDate  = \Carbon\Carbon::parse(end($longestStreak))->format('d-M-Y');
+                $absentDateRange = $firstDate === $lastDate ? $firstDate : $firstDate . ' to ' . $lastDate;
+
                 $other = is_array($employee->other_information) ? $employee->other_information : [];
-                $firstMissing = \Carbon\Carbon::parse($missingDates->first())->format('d-M-Y');
 
                 return [
                     'employee_id' => $employee->employee_id,
@@ -422,9 +475,9 @@ class HrReportController extends Controller
                     'designation' => $designationMap->get($employee->designation_id, 'N/A'),
                     'department' => $departmentMap->get($employee->department_id, 'N/A'),
                     'section' => $sectionMap->get($employee->section_id, 'N/A'),
-                    'absent_days' => $missingDates->count(),
-                    'absent_date' => $firstMissing,
-                    'remarks' => data_get($other, 'resign_info.remarks', 'Attendance not found for selected days'),
+                    'absent_days' => count($longestStreak),
+                    'absent_date' => $absentDateRange,
+                    'remarks' => data_get($other, 'resign_info.remarks', ''),
                 ];
             })
             ->filter()
