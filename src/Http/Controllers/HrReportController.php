@@ -479,18 +479,44 @@ class HrReportController extends Controller
                 $other = $employee->other_information;
                 $profile = is_array($other) ? data_get($other, 'profile', []) : [];
                 $grossSalary = (float) ($employee->gross_salary ?? 0);
-                $incValue = ($grossSalary * max(0, $incrementPercent)) / 100;
-                $finalGross = $grossSalary + $incValue;
 
                 $lastIncValue = (float) data_get($increment, 'increment_amount', data_get($increment, 'gross_increment_amount', data_get($increment, 'amount', 0)));
                 $lastIncDate = data_get($increment, 'increment_date', data_get($increment, 'date'));
+
+                // For increment-summary (withRemarks), use the locked increment record values
+                if ($withRemarks && $increment) {
+                    $incValue = (float) data_get(
+                        $increment,
+                        'increment_amount',
+                        data_get($increment, 'gross_increment_amount', data_get($increment, 'amount', 0))
+                    );
+
+                    $finalGross = (float) data_get(
+                        $increment,
+                        'new_salary',
+                        data_get($increment, 'new_salary_comp_1', data_get($increment, 'new_salary_comp_2', $grossSalary + $incValue))
+                    );
+
+                    $incPercent = (float) data_get(
+                        $increment,
+                        'increment_percentage',
+                        ($grossSalary > 0 ? (($incValue / $grossSalary) * 100) : $incrementPercent)
+                    );
+
+                    $effectiveDateResolved = data_get($increment, 'increment_date', data_get($increment, 'date', $effectiveDate));
+                } else {
+                    $incValue    = ($grossSalary * max(0, $incrementPercent)) / 100;
+                    $incPercent  = max(0, $incrementPercent);
+                    $finalGross  = $grossSalary + $incValue;
+                    $effectiveDateResolved = $effectiveDate;
+                }
 
                 $serviceLength = 'N/A';
                 if (!blank($employee->joining_date)) {
                     $join = $employee->joining_date instanceof \Carbon\Carbon
                         ? $employee->joining_date
                         : \Carbon\Carbon::parse($employee->joining_date);
-                    $ref = !blank($effectiveDate) ? \Carbon\Carbon::parse($effectiveDate) : now();
+                    $ref = !blank($effectiveDateResolved) ? \Carbon\Carbon::parse($effectiveDateResolved) : now();
                     $diff = $join->diff($ref);
                     $serviceLength = sprintf('%dy %dm %dd', $diff->y, $diff->m, $diff->d);
                 }
@@ -511,10 +537,10 @@ class HrReportController extends Controller
                     'last_inc_date' => $lastIncDate ? \Carbon\Carbon::parse($lastIncDate)->format('d-M-Y') : 'N/A',
                     'last_inc_value' => $lastIncValue,
                     'gross_salary' => $grossSalary,
-                    'inc_percent' => max(0, $incrementPercent),
+                    'inc_percent' => $incPercent,
                     'inc_value' => $incValue,
                     'final_gross' => $finalGross,
-                    'effective_date' => !blank($effectiveDate) ? \Carbon\Carbon::parse($effectiveDate)->format('d-M-Y') : 'N/A',
+                    'effective_date' => !blank($effectiveDateResolved) ? \Carbon\Carbon::parse($effectiveDateResolved)->format('d-M-Y') : 'N/A',
                 ];
 
                 if ($withRemarks) {
@@ -1167,27 +1193,45 @@ class HrReportController extends Controller
             return $map;
         }
 
-        $userIds = $employees->pluck('id')->all();
-        if (empty($userIds)) {
+        $userIds = $employees->pluck('id')->filter()->values();
+        $employeeCodes = $employees->pluck('employee_id')->filter()->values();
+        if ($userIds->isEmpty() && $employeeCodes->isEmpty()) {
             return $map;
         }
 
         $sortCol = Schema::hasColumn($table, 'increment_date') ? 'increment_date' : 'created_at';
-        $idCol   = Schema::hasColumn($table, 'user_id') ? 'user_id'
-            : (Schema::hasColumn($table, 'employee_id') ? 'employee_id' : null);
-
-        if (!$idCol) {
+        $hasUserId = Schema::hasColumn($table, 'user_id');
+        $hasEmployeeId = Schema::hasColumn($table, 'employee_id');
+        if (!$hasUserId && !$hasEmployeeId) {
             return $map;
         }
 
-        $grouped = EmployeeIncrement::query()
-            ->whereIn($idCol, $userIds)
+        $rows = EmployeeIncrement::query()
+            ->where(function ($query) use ($hasUserId, $hasEmployeeId, $userIds, $employeeCodes) {
+                if ($hasUserId && $userIds->isNotEmpty()) {
+                    $query->orWhereIn('user_id', $userIds->all());
+                }
+
+                if ($hasEmployeeId && $userIds->isNotEmpty()) {
+                    $query->orWhereIn('employee_id', $userIds->all());
+                }
+
+                if ($hasEmployeeId && $employeeCodes->isNotEmpty()) {
+                    $query->orWhereIn('employee_id', $employeeCodes->all());
+                }
+            })
             ->orderBy($sortCol, 'desc')
-            ->get()
-            ->groupBy($idCol);
+            ->get();
 
         foreach ($employees as $employee) {
-            $map[$employee->id] = $grouped->get($employee->id)?->first();
+            $map[$employee->id] = $rows->first(function ($row) use ($employee) {
+                $rowUserId = data_get($row, 'user_id');
+                $rowEmployeeId = data_get($row, 'employee_id');
+
+                return (string) $rowUserId === (string) $employee->id
+                    || (string) $rowEmployeeId === (string) $employee->id
+                    || (string) $rowEmployeeId === (string) $employee->employee_id;
+            });
         }
 
         return $map;
