@@ -446,8 +446,14 @@ class HrReportController extends Controller
         $gradeMap = Attribute::query()->where('type', 28)->where('status', '<>', 'temp')->pluck('name', 'id');
 
         $rows = $employees
-            ->map(function (User $employee) use ($incrementMap, $request) {
+            ->map(function (User $employee) use ($incrementMap, $request, $withRemarks) {
                 $increment = $incrementMap[$employee->id] ?? null;
+
+                // increment-summary: only show employees with a saved increment record
+                if ($withRemarks && !$increment) {
+                    return null;
+                }
+
                 $lastIncDate = data_get($increment, 'increment_date', data_get($increment, 'date'));
 
                 if ($request->filled('from') || $request->filled('to')) {
@@ -511,10 +517,31 @@ class HrReportController extends Controller
 
                     $effectiveDateResolved = data_get($increment, 'increment_date', data_get($increment, 'date', $effectiveDate));
                 } else {
-                    $incValue    = ($grossSalary * max(0, $incrementPercent)) / 100;
-                    $incPercent  = max(0, $incrementPercent);
-                    $finalGross  = $grossSalary + $incValue;
-                    $effectiveDateResolved = $effectiveDate;
+                    // increment preview: if employee already has a saved/locked increment record,
+                    // show those values; otherwise calculate from the requested increment_percent
+                    if ($increment) {
+                        $incValue = (float) data_get(
+                            $increment,
+                            'increment_amount',
+                            data_get($increment, 'gross_increment_amount', data_get($increment, 'amount', 0))
+                        );
+                        $finalGross = (float) data_get(
+                            $increment,
+                            'new_salary',
+                            data_get($increment, 'new_salary_comp_1', data_get($increment, 'new_salary_comp_2', $grossSalary + $incValue))
+                        );
+                        $incPercent = (float) data_get(
+                            $increment,
+                            'increment_percentage',
+                            ($grossSalary > 0 ? (($incValue / $grossSalary) * 100) : $incrementPercent)
+                        );
+                        $effectiveDateResolved = data_get($increment, 'increment_date', data_get($increment, 'date', $effectiveDate));
+                    } else {
+                        $incValue   = ($grossSalary * max(0, $incrementPercent)) / 100;
+                        $incPercent = max(0, $incrementPercent);
+                        $finalGross = $grossSalary + $incValue;
+                        $effectiveDateResolved = $effectiveDate;
+                    }
                 }
 
                 $serviceLength = 'N/A';
