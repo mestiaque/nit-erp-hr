@@ -1080,7 +1080,7 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 				@php $sl = 1; @endphp
 				@foreach($sheetRows as $group)
 					<tr class="sheet-sec-row">
-						<td colspan="33" class="tl">
+						<td colspan="34" class="tl">
 							{{ $departmentMap->get($group['dept_id'], 'N/A') }} - {{ $sectionMap->get($group['sec_id'], 'N/A') }}
 						</td>
 					</tr>
