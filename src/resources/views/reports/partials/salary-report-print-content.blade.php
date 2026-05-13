@@ -3,13 +3,13 @@
 * { box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 
-.rpt-header { text-align:center; border-bottom:2.5px solid #1a3a5c; padding-bottom:8px; margin-bottom:10px; }
-.rpt-header h2 { margin:0 0 1px; font-size:16px; text-transform:uppercase; letter-spacing:1px; color:#1a3a5c; }
-.rpt-header p  { margin:0; font-size:10.5px; color:#444; }
-.rpt-title-bar { background:#1a3a5c; color:#fff; text-align:center; padding:5px 8px; margin-bottom:8px; }
-.rpt-title-bar h4 { margin:0; font-size:12px; letter-spacing:.5px; }
-.rpt-title-bar span { font-size:10px; opacity:.88; }
-.rpt-meta { display:flex; justify-content:space-between; font-size:9.5px; margin-bottom:8px; color:#333; }
+.rpt-header { text-align:center;  padding-bottom:4px; margin-bottom:5px; line-height:1.2; }
+.rpt-header h2 { margin:0; font-size:14px; text-transform:uppercase; letter-spacing:.6px; color:#1a3a5c; }
+.rpt-header p  { margin:1px 0 0; font-size:9.5px; color:#444; }
+.rpt-title-bar { background:#ffffff00; color:#000000; text-align:center; padding:3px 6px; margin-bottom:-65px; line-height:1.15; }
+.rpt-title-bar h4 { margin:0; font-size:11px; letter-spacing:.3px; }
+.rpt-title-bar span { font-size:9px; opacity:.9; }
+.rpt-meta { display:flex; justify-content:space-between; align-items:center; font-size:9px; margin-bottom:4px; color:#333; line-height:1.15; }
 .rpt-meta span { display:inline-block; }
 
 .t { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:9.5px; }
@@ -41,6 +41,34 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 .sig-box .sig-line { border-top:1px solid #333; margin-bottom:3px; }
 .sig-box .sig-lbl { font-size:8.5px; color:#333; }
 .rpt-footer-note { font-size:8px; color:#666; text-align:center; margin-top:10px; }
+
+.sheet-top { display:flex; justify-content:space-between; gap:10px; margin:2px 0 5px; font-size:9.2px; line-height:1.2; }
+.sheet-top .sheet-right { min-width:220px; }
+.sheet-top .sheet-right .row { display:flex; justify-content:space-between; gap:10px; margin:1px 0; }
+
+.sheet-table { width:100%; border-collapse:collapse; font-size:9px; margin-top:6px; }
+.sheet-table th, .sheet-table td { border:1px solid #6b6b6b; padding:3px 4px; vertical-align:middle; }
+.sheet-table thead th { text-align:center; font-weight:700; }
+.sheet-table thead tr.grp th { background:#efefef; font-size:9.5px; }
+.sheet-table thead tr.sub th { background:#f8f8f8; font-size:8px; font-weight:600; }
+.sheet-table .tc { text-align:center; }
+.sheet-table .tr { text-align:right; }
+.sheet-table .tl { text-align:left; }
+
+.sheet-sec-row td { background:#f4f4f4; color:#0b4f6c; font-weight:700; }
+.sheet-sec-total td { background:#fafafa; font-weight:700; }
+.sheet-grand td { background:#ececec; font-weight:700; font-size:10px; }
+.sheet-inwords { margin-top:10px; font-size:10px; font-weight:700; }
+
+@media print {
+	@page {
+		size: A4 landscape;
+		margin: 7mm;
+	}
+	body {
+		margin: 0;
+	}
+}
 </style>
 @endpush
 
@@ -172,7 +200,22 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 				'total_deduct' => 0,
 				'net' => 0,
 				'ot' => 0,
+				'food_allow' => 0,
+				'cl' => 0,
+				'el' => 0,
+				'sl' => 0,
+				'att_bonus' => 0,
+				'allow_other' => 0,
+				'arrear' => 0,
+				'deduct_absent' => 0,
+				'deduct_other' => 0,
+				'loan' => 0,
+				'deduct_food' => 0,
+				'mobile' => 0,
+				'jr' => 0,
+				'stamp' => 0,
 				'ot_hours' => 0,
+				'ot_rate' => 0,
 				'present' => 0,
 				'absent' => 0,
 			];
@@ -181,6 +224,9 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 		$factoryNo = (int) (hr_factory('factory_no') ?? 0);
 		$employeeData = $employeeDataFn($emp, $request ?? null, null, null, null, null);
 		$salaryReport = $employeeData['getSalaryReport']($from, $to);
+		$earnDeductSummary = (isset($employeeData['getEarningsDeductionsSummary']) && is_callable($employeeData['getEarningsDeductionsSummary']))
+			? $employeeData['getEarningsDeductionsSummary']($from, $to)
+			: [];
 		$sal = hr_employee_salary($emp);
 		$otRate = (float) ($employeeData['salary']['ot_rate'] ?? $sal['ot_rate'] ?? 0);
 
@@ -190,6 +236,7 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 			$to
 		);
 		$summary = $attendancePack['summary'] ?? [];
+		$leave = $attendancePack['leave'] ?? [];
 		$otHours = ($factoryNo === 1 || $factoryNo === 2)
 			? (float) ($summary['totalComplianceOt'] ?? 0)
 			: (float) ($summary['totalOt'] ?? 0);
@@ -206,6 +253,83 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 			? (int) $summary['totalAbsent']
 			: ($sheets->isNotEmpty() ? (int) $sheets->sum('absent_days') : 0);
 
+		$cl = (int) ($leave['casual'] ?? 0);
+		$el = (int) ($leave['earned'] ?? 0);
+		$sl = (int) ($leave['sick'] ?? 0);
+		$foodAllow = (float) ($sal['food'] ?? 0);
+
+		$leaveDays = (int) ($summary['totalLeave'] ?? ($cl + $el + $sl));
+		$hasNoAbsentOrLeave = $absent === 0 && $leaveDays === 0;
+		$attendanceBonusBase = ($factoryNo === 1 || $factoryNo === 2)
+			? (float) ($sal['attendance_bonus_com'] ?? 0)
+			: (float) ($sal['attendance_bonus'] ?? 0);
+		$attendanceBonusFromRule = $hasNoAbsentOrLeave ? $attendanceBonusBase : 0;
+
+		$attBonus = (float) (
+			$salaryReport['attendance_bonus']
+			?? $salaryReport['att_bonus']
+			?? $earnDeductSummary['attendanceBonus']
+			?? $earnDeductSummary['attendance_bonus']
+			?? $attendanceBonusFromRule
+			?? 0
+		);
+		$allowOther = (float) (
+			$earnDeductSummary['otherEarn']
+			?? $earnDeductSummary['other_earn']
+			?? $earnDeductSummary['others_earn']
+			?? $earnDeductSummary['otherAllowance']
+			?? $earnDeductSummary['other_allowance']
+			?? 0
+		);
+		$arrear = (float) (
+			$salaryReport['arrear']
+			?? $earnDeductSummary['arrear']
+			?? $earnDeductSummary['salary_arrear']
+			?? 0
+		);
+
+		$deductAbsent = (float) (
+			$summary['deductAbsent']
+			?? $salaryReport['absent_deduct']
+			?? 0
+		);
+		$loan = (float) (
+			$earnDeductSummary['advanceIou']
+			?? $earnDeductSummary['loan']
+			?? 0
+		);
+		$deductFood = (float) (
+			$earnDeductSummary['foodDeduct']
+			?? $earnDeductSummary['food_deduct']
+			?? 0
+		);
+		$mobile = (float) (
+			$earnDeductSummary['mobile']
+			?? $earnDeductSummary['mobile_deduct']
+			?? 0
+		);
+		$jr = (float) (
+			$earnDeductSummary['jr']
+			?? $earnDeductSummary['join_resign']
+			?? 0
+		);
+		$stamp = (float) (
+			$salaryReport['stamp']
+			?? $sal['stamp_amount']
+			?? 0
+		);
+
+		$deductOther = (float) (
+			$earnDeductSummary['otherDeduct']
+			?? $earnDeductSummary['other_deduct']
+			?? $earnDeductSummary['others_deduct']
+			?? 0
+		);
+		$knownDeduct = $deductAbsent + $loan + $deductFood + $mobile + $jr + $stamp;
+		if ($deductOther <= 0 && $knownDeduct < (float) ($salaryReport['total_deduct'] ?? 0)) {
+			$deductOther = (float) ($salaryReport['total_deduct'] ?? 0) - $knownDeduct;
+		}
+
 		return [
 			'gross' => (float) ($salaryReport['gross'] ?? $sal['gross'] ?? 0),
 			'basic' => (float) ($salaryReport['basic'] ?? $sal['basic'] ?? 0),
@@ -216,7 +340,22 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 			'total_deduct' => (float) ($salaryReport['total_deduct'] ?? 0),
 			'net' => $netPay,
 			'ot' => $otAmount,
+			'food_allow' => $foodAllow,
+			'cl' => $cl,
+			'el' => $el,
+			'sl' => $sl,
+			'att_bonus' => $attBonus,
+			'allow_other' => $allowOther,
+			'arrear' => $arrear,
+			'deduct_absent' => $deductAbsent,
+			'deduct_other' => $deductOther,
+			'loan' => $loan,
+			'deduct_food' => $deductFood,
+			'mobile' => $mobile,
+			'jr' => $jr,
+			'stamp' => $stamp,
 			'ot_hours' => $otHours,
+			'ot_rate' => $otRate,
 			'present' => $present,
 			'absent' => $absent,
 		];
@@ -563,78 +702,518 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 		</div>
 	@endif
 @else
-	@forelse($byDept as $deptId => $deptEmps)
-		<div class="dept-title">&nbsp;Department: {{ $departmentMap->get($deptId, 'N/A') }}</div>
+	@php
+		$periodStart = \Carbon\Carbon::parse($from);
+		$periodEnd = \Carbon\Carbon::parse($to);
+		$totalMonthDays = (int) $periodStart->daysInMonth;
+		$totalPeriodDays = (int) $periodStart->diffInDays($periodEnd) + 1;
 
-		<table class="t">
+		$dayMap = [
+			'sunday' => 0,
+			'monday' => 1,
+			'tuesday' => 2,
+			'wednesday' => 3,
+			'thursday' => 4,
+			'friday' => 5,
+			'saturday' => 6,
+		];
+		$weekendRaw = (string) (hr_factory('weekend') ?? 'Friday');
+		$weekendNames = collect(preg_split('/\s*,\s*/', $weekendRaw))
+			->filter(fn ($v) => filled($v))
+			->map(fn ($v) => strtolower(trim((string) $v)))
+			->values();
+		if ($weekendNames->isEmpty()) {
+			$weekendNames = collect(['friday']);
+		}
+		$weekendDayNumbers = $weekendNames
+			->map(fn ($name) => $dayMap[$name] ?? null)
+			->filter(fn ($n) => !is_null($n))
+			->unique()
+			->values()
+			->all();
+		if (empty($weekendDayNumbers)) {
+			$weekendDayNumbers = [\Carbon\Carbon::FRIDAY];
+		}
+
+		$datePeriod = collect(\Carbon\CarbonPeriod::create(
+			$periodStart->copy()->startOfDay(),
+			'1 day',
+			$periodEnd->copy()->startOfDay()
+		));
+
+		$weekendDateMap = $datePeriod
+			->filter(fn ($d) => in_array($d->dayOfWeek, $weekendDayNumbers, true))
+			->mapWithKeys(fn ($d) => [$d->format('Y-m-d') => true])
+			->all();
+
+		try {
+			$rtwRows = \ME\Hr\Models\RegularToWeekend::query()
+				->whereDate('date', '>=', $periodStart->toDateString())
+				->whereDate('date', '<=', $periodEnd->toDateString())
+				->where('is_active', 1)
+				->get(['date', 'type']);
+
+			foreach ($rtwRows as $rtw) {
+				$dateKey = \Carbon\Carbon::parse($rtw->date)->format('Y-m-d');
+				if (strtolower((string) $rtw->type) === 'weekend') {
+					$weekendDateMap[$dateKey] = true;
+				} elseif (strtolower((string) $rtw->type) === 'regular') {
+					unset($weekendDateMap[$dateKey]);
+				}
+			}
+		} catch (\Throwable $e) {
+			// Keep base weekend calculation when regular_to_weekends table/data is unavailable.
+		}
+
+		$holidayDateMap = [];
+		try {
+			$holidayRows = \ME\Hr\Models\Holiday::query()
+				->where('status', 'active')
+				->where(function ($q) {
+					$q->whereNull('type')
+						->orWhere('type', 'not like', '%Weekly%');
+				})
+				->where(function ($q) use ($periodStart, $periodEnd) {
+					$q->whereBetween('from_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+						->orWhereBetween('to_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+						->orWhere(function ($q2) use ($periodStart, $periodEnd) {
+							$q2->where('from_date', '<=', $periodStart->toDateString())
+								->where('to_date', '>=', $periodEnd->toDateString());
+						});
+				})
+				->get(['from_date', 'to_date']);
+
+			foreach ($holidayRows as $holiday) {
+				$hStart = \Carbon\Carbon::parse($holiday->from_date)->startOfDay();
+				$hEndRaw = filled($holiday->to_date) ? $holiday->to_date : $holiday->from_date;
+				$hEnd = \Carbon\Carbon::parse($hEndRaw)->startOfDay();
+
+				if ($hStart->lt($periodStart->copy()->startOfDay())) {
+					$hStart = $periodStart->copy()->startOfDay();
+				}
+				if ($hEnd->gt($periodEnd->copy()->startOfDay())) {
+					$hEnd = $periodEnd->copy()->startOfDay();
+				}
+
+				if ($hStart->lte($hEnd)) {
+					foreach (\Carbon\CarbonPeriod::create($hStart, '1 day', $hEnd) as $hDate) {
+						$holidayDateMap[$hDate->format('Y-m-d')] = true;
+					}
+				}
+			}
+		} catch (\Throwable $e) {
+			// Keep holiday count 0 when holidays table/data is unavailable.
+		}
+
+		$weekendCount = count($weekendDateMap);
+		$otherHolidayDateMap = array_diff_key($holidayDateMap, $weekendDateMap);
+		$otherHolidayCount = count($otherHolidayDateMap);
+		$totalWorkingDays = max(0, $totalPeriodDays - $weekendCount - $otherHolidayCount);
+		$sheetRows = [];
+		$grand = [
+			'emp' => 0,
+			'basic' => 0,
+			'house' => 0,
+			'medical' => 0,
+			'transport' => 0,
+			'food' => 0,
+			'salary_total' => 0,
+			'pr' => 0,
+			'cl' => 0,
+			'el' => 0,
+			'sl' => 0,
+			'ab' => 0,
+			'att_bonus' => 0,
+			'allow_other' => 0,
+			'arrear' => 0,
+			'allow_total' => 0,
+			'ot_hours' => 0,
+			'ot_rate' => 0,
+			'ot_total' => 0,
+			'gross' => 0,
+			'deduct_absent' => 0,
+			'deduct_other' => 0,
+			'loan' => 0,
+			'deduct_food' => 0,
+			'mobile' => 0,
+			'jr' => 0,
+			'stamp' => 0,
+			'deduction_total' => 0,
+			'net' => 0,
+		];
+
+		foreach ($byDept as $deptId => $deptEmps) {
+			$bySec = $deptEmps->groupBy('section_id');
+			foreach ($bySec as $secId => $secEmps) {
+				$rows = [];
+				$secTotals = [
+					'emp' => 0,
+					'basic' => 0,
+					'house' => 0,
+					'medical' => 0,
+					'transport' => 0,
+					'food' => 0,
+					'salary_total' => 0,
+					'pr' => 0,
+					'cl' => 0,
+					'el' => 0,
+					'sl' => 0,
+					'ab' => 0,
+					'att_bonus' => 0,
+					'allow_other' => 0,
+					'arrear' => 0,
+					'allow_total' => 0,
+					'ot_hours' => 0,
+					'ot_rate' => 0,
+					'ot_total' => 0,
+					'gross' => 0,
+					'deduct_absent' => 0,
+					'deduct_other' => 0,
+					'loan' => 0,
+					'deduct_food' => 0,
+					'mobile' => 0,
+					'jr' => 0,
+					'stamp' => 0,
+					'deduction_total' => 0,
+					'net' => 0,
+				];
+
+				foreach ($secEmps as $emp) {
+					$sd = $empSalary($emp->id, $emp);
+					$food = (float) ($sd['food_allow'] ?? 0);
+					$salaryTotal = $sd['basic'] + $sd['house_rent'] + $sd['medical'] + $sd['transport'] + $food;
+					$attBonus = (float) ($sd['att_bonus'] ?? 0);
+					$allowOther = (float) ($sd['allow_other'] ?? 0);
+					$arrear = (float) ($sd['arrear'] ?? 0);
+					$allowTotal = $attBonus + $allowOther + $arrear;
+					$otRate = (float) ($sd['ot_rate'] ?? ($sd['ot_hours'] > 0 ? ($sd['ot'] / $sd['ot_hours']) : 0));
+
+					$row = [
+						'emp' => $emp,
+						'basic' => $sd['basic'],
+						'house' => $sd['house_rent'],
+						'medical' => $sd['medical'],
+						'transport' => $sd['transport'],
+						'food' => $food,
+						'salary_total' => $salaryTotal,
+						'pr' => $sd['present'],
+						'cl' => (int) ($sd['cl'] ?? 0),
+						'el' => (int) ($sd['el'] ?? 0),
+						'sl' => (int) ($sd['sl'] ?? 0),
+						'ab' => $sd['absent'],
+						'att_bonus' => $attBonus,
+						'allow_other' => $allowOther,
+						'arrear' => $arrear,
+						'allow_total' => $allowTotal,
+						'ot_hours' => $sd['ot_hours'],
+						'ot_rate' => $otRate,
+						'ot_total' => $sd['ot'],
+						'gross' => $sd['gross'],
+						'deduct_absent' => (float) ($sd['deduct_absent'] ?? 0),
+						'deduct_other' => (float) ($sd['deduct_other'] ?? 0),
+						'loan' => (float) ($sd['loan'] ?? 0),
+						'deduct_food' => (float) ($sd['deduct_food'] ?? 0),
+						'mobile' => (float) ($sd['mobile'] ?? 0),
+						'jr' => (float) ($sd['jr'] ?? 0),
+						'stamp' => (float) ($sd['stamp'] ?? 0),
+						'deduction_total' => $sd['total_deduct'],
+						'net' => $sd['net'],
+					];
+					$rows[] = $row;
+
+					$secTotals['emp']++;
+					foreach (['basic','house','medical','transport','food','salary_total','pr','cl','el','sl','ab','att_bonus','allow_other','arrear','allow_total','ot_hours','ot_rate','ot_total','gross','deduct_absent','deduct_other','loan','deduct_food','mobile','jr','stamp','deduction_total','net'] as $k) {
+						$secTotals[$k] += $row[$k];
+						$grand[$k] += $row[$k];
+					}
+					$grand['emp']++;
+				}
+
+				if (!empty($rows)) {
+					$sheetRows[] = [
+						'dept_id' => $deptId,
+						'sec_id' => $secId,
+						'rows' => $rows,
+						'totals' => $secTotals,
+					];
+				}
+			}
+		}
+
+		$numberToWords = function ($number) use (&$numberToWords) {
+			$number = (int) $number;
+			if ($number === 0) {
+				return 'zero';
+			}
+
+			$ones = [
+				'', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+				'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+				'seventeen', 'eighteen', 'nineteen'
+			];
+			$tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+			$convertBelowThousand = function ($n) use ($ones, $tens) {
+				$text = '';
+				$hundreds = intdiv($n, 100);
+				$rest = $n % 100;
+
+				if ($hundreds > 0) {
+					$text .= $ones[$hundreds] . ' hundred';
+					if ($rest > 0) {
+						$text .= ' ';
+					}
+				}
+
+				if ($rest > 0) {
+					if ($rest < 20) {
+						$text .= $ones[$rest];
+					} else {
+						$text .= $tens[intdiv($rest, 10)];
+						$u = $rest % 10;
+						if ($u > 0) {
+							$text .= '-' . $ones[$u];
+						}
+					}
+				}
+
+				return trim($text);
+			};
+
+			$scales = [
+				1000000000 => 'billion',
+				1000000 => 'million',
+				1000 => 'thousand',
+				1 => ''
+			];
+
+			$parts = [];
+			foreach ($scales as $base => $label) {
+				if ($number >= $base) {
+					$chunk = intdiv($number, $base);
+					$number %= $base;
+					if ($chunk > 0) {
+						$piece = $convertBelowThousand($chunk);
+						if ($label !== '') {
+							$piece .= ' ' . $label;
+						}
+						$parts[] = trim($piece);
+					}
+				}
+			}
+
+			return trim(implode(' ', $parts));
+		};
+
+		$inWords = $numberToWords((int) round($grand['net']));
+	@endphp
+
+	<div class="sheet-top">
+		<div>
+			<strong>Report:</strong> Salary Sheet<br>
+			<strong>Period:</strong> {{ $fromLabel }} - {{ $toLabel }}
+		</div>
+		<div class="sheet-right">
+			<div class="row"><span>Total Month Day's :</span><strong>{{ $totalMonthDays }}</strong></div>
+			<div class="row"><span>Total Working Day's :</span><strong>{{ $totalWorkingDays }}</strong></div>
+			<div class="row"><span>Weekly holiday's :</span><strong>{{ $weekendCount }}</strong></div>
+			<div class="row"><span>Others Holiday's :</span><strong>{{ $otherHolidayCount }}</strong></div>
+		</div>
+	</div>
+
+	@if(empty($sheetRows))
+		<p style="text-align:center;color:#888;padding:10px 0;">No employees found.</p>
+	@else
+		<table class="sheet-table">
 			<thead>
-				<tr>
-					<th>SL</th>
-					@if($withPicture)<th>Photo</th>@endif
+				<tr class="grp">
+					<th colspan="5">General Information</th>
+					<th colspan="6">Salary</th>
+					<th colspan="5">Attendance</th>
+					<th colspan="4">Allowance</th>
+					<th colspan="3">Over Time</th>
+					<th rowspan="2">Gross Total</th>
+					<th colspan="8">Deduction</th>
+					<th rowspan="2">Net Payable Salary</th>
+					<th rowspan="2">Sig Nature</th>
+				</tr>
+				<tr class="sub">
+					<th>S.N</th>
 					<th>Emp. ID</th>
-					<th>Name</th>
-					<th>Designation</th>
-					<th>Section</th>
-					<th>Sub-Section</th>
-					<th>Block/Line</th>
-					<th>Join Date</th>
-					<th>Gross</th>
+					<th>Name of Staff</th>
+					<th>Designation / Grade & Line</th>
+					<th>D.O.J</th>
+
 					<th>Basic</th>
-					<th>OT Hrs</th>
-					<th>OT Amt</th>
-					<th>Total Earn</th>
-					<th>Deduction</th>
-					<th>Net Pay</th>
-					<th>Present</th>
+					<th>House Rent</th>
+					<th>Medical</th>
+					<th>Trans Allo</th>
+					<th>Food Allo</th>
+					<th>Total</th>
+
+					<th>PR</th>
+					<th>C/L</th>
+					<th>E/L</th>
+					<th>S/L</th>
+					<th>AB</th>
+
+					<th>Att. Bonus</th>
+					<th>Others</th>
+					<th>Arrear</th>
+					<th>Total</th>
+
+					<th>Hour</th>
+					<th>Rate</th>
+					<th>Total</th>
+
 					<th>Absent</th>
-					<th>Signature</th>
+					<th>Others</th>
+					<th>Loan</th>
+					<th>Food</th>
+					<th>Mobile</th>
+					<th>J/R</th>
+					<th>Stamp</th>
+					<th>Total</th>
 				</tr>
 			</thead>
 			<tbody>
-				@php $sl = 1; $totalNet = 0; @endphp
-				@foreach($deptEmps as $employee)
-					@php
-						$sd = $empSalary($employee->id, $employee);
-						$totalNet += $sd['net'];
-					@endphp
-					<tr>
-						<td class="tc">{{ $sl++ }}</td>
-						@if($withPicture)
-							<td class="tc photo-cell">
-								@if($employee->photo)
-									<img src="{{ asset('storage/' . $employee->photo) }}" alt="">
-								@else
-									-
-								@endif
+				@php $sl = 1; @endphp
+				@foreach($sheetRows as $group)
+					<tr class="sheet-sec-row">
+						<td colspan="33" class="tl">
+							{{ $departmentMap->get($group['dept_id'], 'N/A') }} - {{ $sectionMap->get($group['sec_id'], 'N/A') }}
+						</td>
+					</tr>
+					@foreach($group['rows'] as $row)
+						@php
+							$employee = $row['emp'];
+						@endphp
+						<tr>
+							<td class="tc">{{ $sl++ }}</td>
+							<td class="tc">{{ $employee->employee_id }}</td>
+							<td>{{ $language === 'bn' && $employee->bn_name ? $employee->bn_name : $employee->name }}</td>
+							<td>
+								{{ $designationMap->get($employee->designation_id, 'N/A') }}<br>
+								{{ $lineMap->get($employee->line_number, 'N/A') }}
 							</td>
-						@endif
-						<td>{{ $employee->employee_id }}</td>
-						<td>{{ $language === 'bn' && $employee->bn_name ? $employee->bn_name : $employee->name }}</td>
-						<td>{{ $designationMap->get($employee->designation_id, 'N/A') }}</td>
-						<td>{{ $sectionMap->get($employee->section_id, 'N/A') }}</td>
-						<td>{{ $subSectionMap->get($employee->otherInfo()['profile']['sub_section_id']) }}</td>
-						<td>{{ $lineMap->get($employee->line_number, 'N/A') }}</td>
-						<td class="tc">{{ optional($employee->joining_date)->format('d-M-y') ?? '-' }}</td>
-						<td class="tr">{{ $fmt($sd['gross']) }}</td>
-						<td class="tr">{{ $fmt($sd['basic']) }}</td>
-						<td class="tc">{{ number_format($sd['ot_hours'], 2) }}</td>
-						<td class="tr">{{ $fmt($sd['ot']) }}</td>
-						<td class="tr">{{ $fmt($sd['total_earn']) }}</td>
-						<td class="tr">{{ $fmt($sd['total_deduct']) }}</td>
-						<td class="tr">{{ $fmt($sd['net']) }}</td>
-						<td class="tc">{{ $sd['present'] }}</td>
-						<td class="tc">{{ $sd['absent'] }}</td>
+							<td class="tc">{{ optional($employee->joining_date)->format('d-M-Y') ?? '-' }}</td>
+
+							<td class="tr">{{ number_format($row['basic']) }}</td>
+							<td class="tr">{{ number_format($row['house']) }}</td>
+							<td class="tr">{{ number_format($row['medical']) }}</td>
+							<td class="tr">{{ number_format($row['transport']) }}</td>
+							<td class="tr">{{ number_format($row['food']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['salary_total']) }}</strong></td>
+
+							<td class="tc">{{ $row['pr'] }}</td>
+							<td class="tc">{{ $row['cl'] }}</td>
+							<td class="tc">{{ $row['el'] }}</td>
+							<td class="tc">{{ $row['sl'] }}</td>
+							<td class="tc">{{ $row['ab'] }}</td>
+
+							<td class="tr">{{ number_format($row['att_bonus']) }}</td>
+							<td class="tr">{{ number_format($row['allow_other']) }}</td>
+							<td class="tr">{{ number_format($row['arrear']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['allow_total']) }}</strong></td>
+
+							<td class="tc">{{ number_format($row['ot_hours'], 2) }}</td>
+							<td class="tc">{{ number_format($row['ot_rate'], 2) }}</td>
+							<td class="tr"><strong>{{ number_format($row['ot_total']) }}</strong></td>
+
+							<td class="tr"><strong>{{ number_format($row['gross']) }}</strong></td>
+
+							<td class="tr">{{ number_format($row['deduct_absent']) }}</td>
+							<td class="tr">{{ number_format($row['deduct_other']) }}</td>
+							<td class="tr">{{ number_format($row['loan']) }}</td>
+							<td class="tr">{{ number_format($row['deduct_food']) }}</td>
+							<td class="tr">{{ number_format($row['mobile']) }}</td>
+							<td class="tr">{{ number_format($row['jr']) }}</td>
+							<td class="tr">{{ number_format($row['stamp']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['deduction_total']) }}</strong></td>
+
+							<td class="tr"><strong>{{ number_format($row['net']) }}</strong></td>
+							<td></td>
+						</tr>
+					@endforeach
+
+					<tr class="sheet-sec-total">
+						<td colspan="5" class="tl">
+							{{ $sectionMap->get($group['sec_id'], 'N/A') }} Total
+						</td>
+						<td class="tr">{{ number_format($group['totals']['basic']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['house']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['medical']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['transport']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['food']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['salary_total']) }}</td>
+						<td class="tc">{{ $group['totals']['pr'] }}</td>
+						<td class="tc">{{ $group['totals']['cl'] }}</td>
+						<td class="tc">{{ $group['totals']['el'] }}</td>
+						<td class="tc">{{ $group['totals']['sl'] }}</td>
+						<td class="tc">{{ $group['totals']['ab'] }}</td>
+						<td class="tr">{{ number_format($group['totals']['att_bonus']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['allow_other']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['arrear']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['allow_total']) }}</td>
+						<td class="tc">{{ number_format($group['totals']['ot_hours'], 2) }}</td>
+						<td class="tc">{{ number_format($group['totals']['emp'] > 0 ? $group['totals']['ot_rate'] / $group['totals']['emp'] : 0, 2) }}</td>
+						<td class="tr">{{ number_format($group['totals']['ot_total']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['gross']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_absent']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_other']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['loan']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_food']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['mobile']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['jr']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['stamp']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduction_total']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['net']) }}</td>
 						<td></td>
 					</tr>
 				@endforeach
-				<tr class="summary-row">
-					<td colspan="{{ $withPicture ? 15 : 14 }}" class="tr">Total Net Pay:</td>
-					<td class="tr">{{ $fmt($totalNet) }}</td>
-					<td></td><td></td><td></td>
+
+				<tr class="sheet-grand">
+					<td colspan="5" class="tl">Grand Total Amount :</td>
+					<td class="tr">{{ number_format($grand['basic']) }}</td>
+					<td class="tr">{{ number_format($grand['house']) }}</td>
+					<td class="tr">{{ number_format($grand['medical']) }}</td>
+					<td class="tr">{{ number_format($grand['transport']) }}</td>
+					<td class="tr">{{ number_format($grand['food']) }}</td>
+					<td class="tr">{{ number_format($grand['salary_total']) }}</td>
+					<td class="tc">{{ $grand['pr'] }}</td>
+					<td class="tc">{{ $grand['cl'] }}</td>
+					<td class="tc">{{ $grand['el'] }}</td>
+					<td class="tc">{{ $grand['sl'] }}</td>
+					<td class="tc">{{ $grand['ab'] }}</td>
+					<td class="tr">{{ number_format($grand['att_bonus']) }}</td>
+					<td class="tr">{{ number_format($grand['allow_other']) }}</td>
+					<td class="tr">{{ number_format($grand['arrear']) }}</td>
+					<td class="tr">{{ number_format($grand['allow_total']) }}</td>
+					<td class="tc">{{ number_format($grand['ot_hours'], 2) }}</td>
+					<td class="tc">{{ number_format($grand['emp'] > 0 ? $grand['ot_rate'] / $grand['emp'] : 0, 2) }}</td>
+					<td class="tr">{{ number_format($grand['ot_total']) }}</td>
+					<td class="tr">{{ number_format($grand['gross']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_absent']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_other']) }}</td>
+					<td class="tr">{{ number_format($grand['loan']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_food']) }}</td>
+					<td class="tr">{{ number_format($grand['mobile']) }}</td>
+					<td class="tr">{{ number_format($grand['jr']) }}</td>
+					<td class="tr">{{ number_format($grand['stamp']) }}</td>
+					<td class="tr">{{ number_format($grand['deduction_total']) }}</td>
+					<td class="tr">{{ number_format($grand['net']) }}</td>
+					<td></td>
 				</tr>
 			</tbody>
 		</table>
-	@empty
-		<p>No employees found.</p>
-	@endforelse
+
+		<div class="sheet-inwords">
+			In Words :
+			@if($inWords)
+				Taka {{ ucfirst($inWords) }} only
+			@else
+				Taka {{ number_format($grand['net'], 2) }} only
+			@endif
+		</div>
+	@endif
 @endif

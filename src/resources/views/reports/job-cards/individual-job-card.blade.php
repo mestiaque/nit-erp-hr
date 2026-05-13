@@ -120,49 +120,49 @@
     </table>
 
     <!-- Summary table here: -->
-<table class="info-grid">
-    <tr>
-        <td>{{ $t('মাসের মোট দিন', 'Total Days in Month') }}</td>
-        <td>{{ $fmtNumber($summary['totalDays']) }}</td>
-        <td>{{ $t('কার্যদিবস', 'Working Days') }}</td>
-        <td>{{ $fmtNumber($summary['totalWorkingDays']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('সরকারি ছুটি', 'Govt. Holidays') }}</td>
-        <td>{{ $fmtNumber($summary['totalGovHolidays']) }}</td>
-        <td>{{ $t('সাপ্তাহিক ছুটি', 'Weekend Days') }}</td>
-        <td>{{ $fmtNumber($summary['totalWeekendDays']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('অনুপস্থিত', 'Absent Days') }}</td>
-        <td>{{ $fmtNumber($summary['totalAbsent']) }}</td>
-        <td>{{ $t('ছুটি', 'Leave Days') }}</td>
-        <td>{{ $fmtNumber($summary['totalLeave']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('উপস্থিত', 'Present Days') }}</td>
-        <td>{{ $fmtNumber($summary['totalPresent']) }}</td>
-        <td>{{ $t('মোট উপস্থিতি', 'Total Attendance') }}</td>
-        <td>{{ $fmtNumber($summary['totalAttendance']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('বিলম্ব', 'Late') }}</td>
-        <td>{{ $fmtNumber($summary['totalLate']) }}</td>
-        <td>{{ $t('পাঞ্চ মিসিং', 'Punch Missing') }}</td>
-        <td>{{ $fmtNumber($summary['totalPM']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('আগে বের হয়েছে', 'Early Out') }}</td>
-        <td>{{ $fmtNumber($summary['totalEO']) }}</td>
-        <td>{{ $t('বিলম্ব ও আগে বের', 'Late & Early Out') }}</td>
-        <td>{{ $fmtNumber($summary['totalLEO']) }}</td>
-    </tr>
-    <tr>
-        <td>{{ $t('বিলম্ব ও পাঞ্চ মিসিং', 'Late & Punch Missing') }}</td>
-        <td>{{ $fmtNumber($summary['totalLPM']) }}</td>
-        <td></td><td></td>
-    </tr>
-</table>
+    <table class="info-grid">
+        <tr>
+            <td>{{ $t('মাসের মোট দিন', 'Total Days in Month') }}</td>
+            <td>{{ $fmtNumber($summary['totalDays']) }}</td>
+            <td>{{ $t('কার্যদিবস', 'Working Days') }}</td>
+            <td>{{ $fmtNumber($summary['totalWorkingDays']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('সরকারি ছুটি', 'Govt. Holidays') }}</td>
+            <td>{{ $fmtNumber($summary['totalGovHolidays']) }}</td>
+            <td>{{ $t('সাপ্তাহিক ছুটি', 'Weekend Days') }}</td>
+            <td>{{ $fmtNumber($summary['totalWeekendDays']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('অনুপস্থিত', 'Absent Days') }}</td>
+            <td>{{ $fmtNumber($summary['totalAbsent']) }}</td>
+            <td>{{ $t('ছুটি', 'Leave Days') }}</td>
+            <td>{{ $fmtNumber($summary['totalLeave']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('উপস্থিত', 'Present Days') }}</td>
+            <td>{{ $fmtNumber($summary['totalPresent']) }}</td>
+            <td>{{ $t('মোট উপস্থিতি', 'Total Attendance') }}</td>
+            <td>{{ $fmtNumber($summary['totalAttendance']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('বিলম্ব', 'Late') }}</td>
+            <td>{{ $fmtNumber($summary['totalLate']) }}</td>
+            <td>{{ $t('পাঞ্চ মিসিং', 'Punch Missing') }}</td>
+            <td>{{ $fmtNumber($summary['totalPM']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('আগে বের হয়েছে', 'Early Out') }}</td>
+            <td>{{ $fmtNumber($summary['totalEO']) }}</td>
+            <td>{{ $t('বিলম্ব ও আগে বের', 'Late & Early Out') }}</td>
+            <td>{{ $fmtNumber($summary['totalLEO']) }}</td>
+        </tr>
+        <tr>
+            <td>{{ $t('বিলম্ব ও পাঞ্চ মিসিং', 'Late & Punch Missing') }}</td>
+            <td>{{ $fmtNumber($summary['totalLPM']) }}</td>
+            <td></td><td></td>
+        </tr>
+    </table>
 
     <div class="page-break"></div>
 @endforeach
