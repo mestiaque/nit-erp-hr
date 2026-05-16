@@ -185,11 +185,181 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 	$departmentMap = collect($hrOptions['departments'])->pluck('name', 'id');
 	$sectionMap = collect($hrOptions['sections'])->pluck('name', 'id');
 	$subSectionMap = collect($hrOptions['subSections'])->pluck('name', 'id');
-	$designationMap = \ME\Hr\Models\Designation::query()->get(['id', 'name', 'grade_id'])
-		->mapWithKeys(fn ($d) => [$d->id => ['name' => $d->name, 'grade' => $d->grade_id]]);
+	$designationMap = \ME\Hr\Models\Designation::query()->pluck('name', 'id');
 
-	// Leave types from database (admin/hr-center/masters/leave-infos)
-	$leaveInfos = \ME\Hr\Models\LeaveInfo::orderBy('id')->get(['id', 'name', 'code']);
+	$empSalary = function ($userId, $emp = null) use ($salarySheets, $employeeDataFn, $request, $from, $to) {
+		$sheets = $salarySheets->get($userId, collect());
+		if (!$emp) {
+			return [
+				'gross' => 0,
+				'basic' => 0,
+				'house_rent' => 0,
+				'medical' => 0,
+				'transport' => 0,
+				'total_earn' => 0,
+				'total_deduct' => 0,
+				'net' => 0,
+				'ot' => 0,
+				'food_allow' => 0,
+				'cl' => 0,
+				'el' => 0,
+				'sl' => 0,
+				'att_bonus' => 0,
+				'allow_other' => 0,
+				'arrear' => 0,
+				'deduct_absent' => 0,
+				'deduct_other' => 0,
+				'loan' => 0,
+				'deduct_food' => 0,
+				'mobile' => 0,
+				'jr' => 0,
+				'stamp' => 0,
+				'ot_hours' => 0,
+				'ot_rate' => 0,
+				'present' => 0,
+				'absent' => 0,
+			];
+		}
+
+		$factoryNo = (int) (hr_factory('factory_no') ?? 0);
+		$employeeData = $employeeDataFn($emp, $request ?? null, null, null, null, null);
+		$salaryReport = $employeeData['getSalaryReport']($from, $to);
+		$earnDeductSummary = (isset($employeeData['getEarningsDeductionsSummary']) && is_callable($employeeData['getEarningsDeductionsSummary']))
+			? $employeeData['getEarningsDeductionsSummary']($from, $to)
+			: [];
+		$sal = hr_employee_salary($emp);
+		$otRate = (float) ($employeeData['salary']['ot_rate'] ?? $sal['ot_rate'] ?? 0);
+
+		$attendancePack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate(
+			$emp->id,
+			$from,
+			$to
+		);
+		$summary = $attendancePack['summary'] ?? [];
+		$leave = $attendancePack['leave'] ?? [];
+		$otHours = ($factoryNo === 1 || $factoryNo === 2)
+			? (float) ($summary['totalComplianceOt'] ?? 0)
+			: (float) ($summary['totalOt'] ?? 0);
+		$otAmount = round($otHours * $otRate, 2);
+		$salaryOt = (float) ($salaryReport['ot'] ?? 0);
+		$otAdjustment = $otAmount - $salaryOt;
+		$totalEarn = (float) ($salaryReport['total_earn'] ?? 0) + $otAdjustment;
+		$netPay = (float) ($salaryReport['net'] ?? 0) + $otAdjustment;
+
+		$present = isset($summary['totalPresentAll'])
+			? (int) $summary['totalPresentAll']
+			: ($sheets->isNotEmpty() ? (int) $sheets->sum('present_days') : 0);
+		$absent = isset($summary['totalAbsent'])
+			? (int) $summary['totalAbsent']
+			: ($sheets->isNotEmpty() ? (int) $sheets->sum('absent_days') : 0);
+
+		$cl = (int) ($leave['casual'] ?? 0);
+		$el = (int) ($leave['earned'] ?? 0);
+		$sl = (int) ($leave['sick'] ?? 0);
+		$foodAllow = (float) ($sal['food'] ?? 0);
+
+		$leaveDays = (int) ($summary['totalLeave'] ?? ($cl + $el + $sl));
+		$hasNoAbsentOrLeave = $absent === 0 && $leaveDays === 0;
+		$attendanceBonusBase = ($factoryNo === 1 || $factoryNo === 2)
+			? (float) ($sal['attendance_bonus_com'] ?? 0)
+			: (float) ($sal['attendance_bonus'] ?? 0);
+		$attendanceBonusFromRule = $hasNoAbsentOrLeave ? $attendanceBonusBase : 0;
+
+		$attBonus = (float) (
+			$salaryReport['attendance_bonus']
+			?? $salaryReport['att_bonus']
+			?? $earnDeductSummary['attendanceBonus']
+			?? $earnDeductSummary['attendance_bonus']
+			?? $attendanceBonusFromRule
+			?? 0
+		);
+		$allowOther = (float) (
+			$earnDeductSummary['otherEarn']
+			?? $earnDeductSummary['other_earn']
+			?? $earnDeductSummary['others_earn']
+			?? $earnDeductSummary['otherAllowance']
+			?? $earnDeductSummary['other_allowance']
+			?? 0
+		);
+		$arrear = (float) (
+			$salaryReport['arrear']
+			?? $earnDeductSummary['arrear']
+			?? $earnDeductSummary['salary_arrear']
+			?? 0
+		);
+
+		$deductAbsent = (float) (
+			$summary['deductAbsent']
+			?? $salaryReport['absent_deduct']
+			?? 0
+		);
+		$loan = (float) (
+			$earnDeductSummary['advanceIou']
+			?? $earnDeductSummary['loan']
+			?? 0
+		);
+		$deductFood = (float) (
+			$earnDeductSummary['foodDeduct']
+			?? $earnDeductSummary['food_deduct']
+			?? 0
+		);
+		$mobile = (float) (
+			$earnDeductSummary['mobile']
+			?? $earnDeductSummary['mobile_deduct']
+			?? 0
+		);
+		$jr = (float) (
+			$earnDeductSummary['jr']
+			?? $earnDeductSummary['join_resign']
+			?? 0
+		);
+		$stamp = (float) (
+			$salaryReport['stamp']
+			?? $sal['stamp_amount']
+			?? 0
+		);
+
+		$deductOther = (float) (
+			$earnDeductSummary['otherDeduct']
+			?? $earnDeductSummary['other_deduct']
+			?? $earnDeductSummary['others_deduct']
+			?? 0
+		);
+		$knownDeduct = $deductAbsent + $loan + $deductFood + $mobile + $jr + $stamp;
+		if ($deductOther <= 0 && $knownDeduct < (float) ($salaryReport['total_deduct'] ?? 0)) {
+			$deductOther = (float) ($salaryReport['total_deduct'] ?? 0) - $knownDeduct;
+		}
+
+		return [
+			'gross' => (float) ($salaryReport['gross'] ?? $sal['gross'] ?? 0),
+			'basic' => (float) ($salaryReport['basic'] ?? $sal['basic'] ?? 0),
+			'house_rent' => (float) ($sal['house'] ?? 0),
+			'medical' => (float) ($sal['medical'] ?? 0),
+			'transport' => (float) ($sal['transport'] ?? 0),
+			'total_earn' => $totalEarn,
+			'total_deduct' => (float) ($salaryReport['total_deduct'] ?? 0),
+			'net' => $netPay,
+			'ot' => $otAmount,
+			'food_allow' => $foodAllow,
+			'cl' => $cl,
+			'el' => $el,
+			'sl' => $sl,
+			'att_bonus' => $attBonus,
+			'allow_other' => $allowOther,
+			'arrear' => $arrear,
+			'deduct_absent' => $deductAbsent,
+			'deduct_other' => $deductOther,
+			'loan' => $loan,
+			'deduct_food' => $deductFood,
+			'mobile' => $mobile,
+			'jr' => $jr,
+			'stamp' => $stamp,
+			'ot_hours' => $otHours,
+			'ot_rate' => $otRate,
+			'present' => $present,
+			'absent' => $absent,
+		];
+	};
 @endphp
 
 <div class="rpt-header">
@@ -226,7 +396,7 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 					'present' => 0, 'absent' => 0,
 				];
 				foreach ($secEmps as $emp) {
-					$sd = \App\Services\SalaryReportService::getEmployeeSalaryData($emp, $from, $to, $request, $employeeDataFn);
+					$sd = $empSalary($emp->id, $emp);
 					$row['basic'] += $sd['basic'];
 					$row['house_rent'] += $sd['house_rent'];
 					$row['medical'] += $sd['medical'];
@@ -639,95 +809,136 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 		$otherHolidayDateMap = array_diff_key($holidayDateMap, $weekendDateMap);
 		$otherHolidayCount = count($otherHolidayDateMap);
 		$totalWorkingDays = max(0, $totalPeriodDays - $weekendCount - $otherHolidayCount);
-
-		// Base grand totals — leave keys added dynamically below
-		$grandBase = [
-			'emp' => 0, 'basic' => 0, 'house' => 0, 'medical' => 0,
-			'transport' => 0, 'food' => 0, 'salary_total' => 0,
-			'pr' => 0, 'wh' => 0, 'fh' => 0, 'ab' => 0, 'earn_days' => 0,
-			'att_bonus' => 0, 'deduct_absent' => 0, 'loan' => 0, 'tax' => 0, 'stamp' => 0,
-			'deduct_other' => 0, 'wph_days' => 0, 'wph_amount' => 0,
-			'other_earn' => 0, 'gross' => 0,
-			'ot_hours' => 0, 'ot_rate' => 0, 'ot_total' => 0,
-			'extra_facility' => 0, 'net' => 0, 'deduction_total' => 0,
-		];
-		foreach ($leaveInfos as $li) {
-			$grandBase['leave_' . strtoupper($li->code)] = 0;
-		}
-		$grand = $grandBase;
 		$sheetRows = [];
+		$grand = [
+			'emp' => 0,
+			'basic' => 0,
+			'house' => 0,
+			'medical' => 0,
+			'transport' => 0,
+			'food' => 0,
+			'salary_total' => 0,
+			'pr' => 0,
+			'cl' => 0,
+			'el' => 0,
+			'sl' => 0,
+			'ab' => 0,
+			'att_bonus' => 0,
+			'allow_other' => 0,
+			'arrear' => 0,
+			'allow_total' => 0,
+			'ot_hours' => 0,
+			'ot_rate' => 0,
+			'ot_total' => 0,
+			'gross' => 0,
+			'deduct_absent' => 0,
+			'deduct_other' => 0,
+			'loan' => 0,
+			'deduct_food' => 0,
+			'mobile' => 0,
+			'jr' => 0,
+			'stamp' => 0,
+			'deduction_total' => 0,
+			'net' => 0,
+		];
 
 		foreach ($byDept as $deptId => $deptEmps) {
 			$bySec = $deptEmps->groupBy('section_id');
 			foreach ($bySec as $secId => $secEmps) {
 				$rows = [];
-				$secTotals = $grandBase; // same shape, reset to zero
+				$secTotals = [
+					'emp' => 0,
+					'basic' => 0,
+					'house' => 0,
+					'medical' => 0,
+					'transport' => 0,
+					'food' => 0,
+					'salary_total' => 0,
+					'pr' => 0,
+					'cl' => 0,
+					'el' => 0,
+					'sl' => 0,
+					'ab' => 0,
+					'att_bonus' => 0,
+					'allow_other' => 0,
+					'arrear' => 0,
+					'allow_total' => 0,
+					'ot_hours' => 0,
+					'ot_rate' => 0,
+					'ot_total' => 0,
+					'gross' => 0,
+					'deduct_absent' => 0,
+					'deduct_other' => 0,
+					'loan' => 0,
+					'deduct_food' => 0,
+					'mobile' => 0,
+					'jr' => 0,
+					'stamp' => 0,
+					'deduction_total' => 0,
+					'net' => 0,
+				];
 
 				foreach ($secEmps as $emp) {
-					$sd = \App\Services\SalaryReportService::getEmployeeSalaryData($emp, $from, $to, $request, $employeeDataFn);
-
-					$salaryTotal = $sd['basic'] + $sd['house_rent'] + $sd['medical'] + $sd['transport'] + $sd['food_allow'];
-					$otRate = (float) ($sd['ot_rate'] ?? 0);
+					$sd = $empSalary($emp->id, $emp);
+					$food = (float) ($sd['food_allow'] ?? 0);
+					$salaryTotal = $sd['basic'] + $sd['house_rent'] + $sd['medical'] + $sd['transport'] + $food;
+					$attBonus = (float) ($sd['att_bonus'] ?? 0);
+					$allowOther = (float) ($sd['allow_other'] ?? 0);
+					$arrear = (float) ($sd['arrear'] ?? 0);
+					$allowTotal = $attBonus + $allowOther + $arrear;
+					$otRate = (float) ($sd['ot_rate'] ?? ($sd['ot_hours'] > 0 ? ($sd['ot'] / $sd['ot_hours']) : 0));
 
 					$row = [
-						'emp'            => $emp,
-						'basic'          => $sd['basic'],
-						'house'          => $sd['house_rent'],
-						'medical'        => $sd['medical'],
-						'transport'      => $sd['transport'],
-						'food'           => $sd['food_allow'],
-						'salary_total'   => $salaryTotal,
-						'pr'             => $sd['present'],
-						'wh'             => $sd['wh'],
-						'fh'             => $sd['fh'],
-						'ab'             => $sd['absent'],
-						'earn_days'      => $totalMonthDays - $sd['absent'],
-						'att_bonus'      => $sd['att_bonus'],
-						'deduct_absent'  => $sd['deduct_absent'],
-						'loan'           => $sd['loan'],
-						'tax'            => 0,
-						'stamp'          => $sd['stamp'],
-						'deduct_other'   => $sd['deduct_other'],
-						'wph_days'       => $sd['wph_days'],
-						'wph_amount'     => $sd['wph_amount'],
-						'other_earn'     => $sd['allow_other'] + $sd['arrear'],
-						'gross'          => $sd['gross'],
-						'ot_hours'       => $sd['ot_hours'],
-						'ot_rate'        => $otRate,
-						'ot_total'       => $sd['ot'],
-						'extra_facility' => $sd['extra_facility'],
-						'net'            => $sd['net'],
-						'deduction_total'=> $sd['total_deduct'],
+						'emp' => $emp,
+						'basic' => $sd['basic'],
+						'house' => $sd['house_rent'],
+						'medical' => $sd['medical'],
+						'transport' => $sd['transport'],
+						'food' => $food,
+						'salary_total' => $salaryTotal,
+						'pr' => $sd['present'],
+						'cl' => (int) ($sd['cl'] ?? 0),
+						'el' => (int) ($sd['el'] ?? 0),
+						'sl' => (int) ($sd['sl'] ?? 0),
+						'ab' => $sd['absent'],
+						'att_bonus' => $attBonus,
+						'allow_other' => $allowOther,
+						'arrear' => $arrear,
+						'allow_total' => $allowTotal,
+						'ot_hours' => $sd['ot_hours'],
+						'ot_rate' => $otRate,
+						'ot_total' => $sd['ot'],
+						'gross' => $sd['gross'],
+						'deduct_absent' => (float) ($sd['deduct_absent'] ?? 0),
+						'deduct_other' => (float) ($sd['deduct_other'] ?? 0),
+						'loan' => (float) ($sd['loan'] ?? 0),
+						'deduct_food' => (float) ($sd['deduct_food'] ?? 0),
+						'mobile' => (float) ($sd['mobile'] ?? 0),
+						'jr' => (float) ($sd['jr'] ?? 0),
+						'stamp' => (float) ($sd['stamp'] ?? 0),
+						'deduction_total' => $sd['total_deduct'],
+						'net' => $sd['net'],
 					];
-					foreach ($leaveInfos as $li) {
-						$code = strtoupper($li->code);
-						$row['leave_' . $code] = (int) ($sd['leaves_by_code'][$code] ?? 0);
-					}
 					$rows[] = $row;
 
 					$secTotals['emp']++;
-					$grand['emp']++;
-					foreach (array_keys($grandBase) as $k) {
-						if ($k === 'emp') continue;
-						$secTotals[$k] = ($secTotals[$k] ?? 0) + ($row[$k] ?? 0);
-						$grand[$k]     = ($grand[$k] ?? 0) + ($row[$k] ?? 0);
+					foreach (['basic','house','medical','transport','food','salary_total','pr','cl','el','sl','ab','att_bonus','allow_other','arrear','allow_total','ot_hours','ot_rate','ot_total','gross','deduct_absent','deduct_other','loan','deduct_food','mobile','jr','stamp','deduction_total','net'] as $k) {
+						$secTotals[$k] += $row[$k];
+						$grand[$k] += $row[$k];
 					}
+					$grand['emp']++;
 				}
 
 				if (!empty($rows)) {
 					$sheetRows[] = [
 						'dept_id' => $deptId,
-						'sec_id'  => $secId,
-						'rows'    => $rows,
-						'totals'  => $secTotals,
+						'sec_id' => $secId,
+						'rows' => $rows,
+						'totals' => $secTotals,
 					];
 				}
 			}
 		}
-
-		// Total dynamic columns for colspan calculations
-		$leaveCols = 2 + $leaveInfos->count(); // WH + FH + dynamic
-		$totalCols = 35 + $leaveInfos->count(); // all columns
 
 		$numberToWords = function ($number) use (&$numberToWords) {
 			$number = (int) $number;
@@ -816,187 +1027,180 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
 		<table class="sheet-table">
 			<thead>
 				<tr class="grp">
-					<th rowspan="2">S.N</th>
-					<th rowspan="2">Emp.<br>ID</th>
-					<th rowspan="2">Name</th>
-					<th rowspan="2">Designation</th>
-					<th rowspan="2">Grade</th>
-					<th rowspan="2">Joining Date</th>
-					<th rowspan="2">Gross<br>Salary</th>
-					<th colspan="6">Salary Components</th>
-					<th rowspan="2">Month<br>Days</th>
-					<th rowspan="2">Present</th>
-					<th colspan="{{ $leaveCols }}">Leave</th>
-					<th rowspan="2">Absent</th>
-					<th rowspan="2">Earn<br>Days</th>
-					<th rowspan="2">Att.<br>Bonus</th>
-					<th colspan="4">Deduction</th>
-					<th rowspan="2">Others<br>Deduct.</th>
-					<th colspan="2">WP &amp; HP</th>
-					<th rowspan="2">Others<br>Earning</th>
-					<th rowspan="2">Payable<br>Salary</th>
+					<th colspan="5">General Information</th>
+					<th colspan="6">Salary</th>
+					<th colspan="5">Attendance</th>
+					<th colspan="4">Allowance</th>
 					<th colspan="3">Over Time</th>
-					<th rowspan="2">Extra<br>Facility</th>
-					<th rowspan="2">Net Payable<br>Salary</th>
-					<th rowspan="2">Signature<br>&amp; Stamp</th>
+					<th rowspan="2">Gross Total</th>
+					<th colspan="8">Deduction</th>
+					<th rowspan="2">Net Payable Salary</th>
+					<th rowspan="2">Sig Nature</th>
 				</tr>
 				<tr class="sub">
+					<th>S.N</th>
+					<th>Emp. ID</th>
+					<th>Name of Staff</th>
+					<th>Designation / Grade & Line</th>
+					<th>D.O.J</th>
+
 					<th>Basic</th>
-					<th>House<br>Rent</th>
+					<th>House Rent</th>
 					<th>Medical</th>
-					<th>Lunch</th>
-					<th>Trans.</th>
+					<th>Trans Allo</th>
+					<th>Food Allo</th>
 					<th>Total</th>
-					<th>WH</th>
-					<th>FH</th>
-					@foreach($leaveInfos as $li)
-						<th>{{ $li->code }}</th>
-					@endforeach
-					<th>Abs<br>Amt</th>
-					<th>Adv<br>Amt</th>
-					<th>Tax</th>
-					<th>Stamp</th>
-					<th>Days</th>
-					<th>Amt</th>
-					<th>OT/H</th>
+
+					<th>PR</th>
+					<th>C/L</th>
+					<th>E/L</th>
+					<th>S/L</th>
+					<th>AB</th>
+
+					<th>Att. Bonus</th>
+					<th>Others</th>
+					<th>Arrear</th>
+					<th>Total</th>
+
+					<th>Hour</th>
 					<th>Rate</th>
-					<th>Amt</th>
+					<th>Total</th>
+
+					<th>Absent</th>
+					<th>Others</th>
+					<th>Loan</th>
+					<th>Food</th>
+					<th>Mobile</th>
+					<th>J/R</th>
+					<th>Stamp</th>
+					<th>Total</th>
 				</tr>
 			</thead>
 			<tbody>
 				@php $sl = 1; @endphp
 				@foreach($sheetRows as $group)
 					<tr class="sheet-sec-row">
-						<td colspan="{{ $totalCols }}" class="tl">
-							{{ $departmentMap->get($group['dept_id'], 'N/A') }} &mdash; {{ $sectionMap->get($group['sec_id'], 'N/A') }}
+						<td colspan="34" class="tl">
+							{{ $departmentMap->get($group['dept_id'], 'N/A') }} - {{ $sectionMap->get($group['sec_id'], 'N/A') }}
 						</td>
 					</tr>
 					@foreach($group['rows'] as $row)
 						@php
-							$employee   = $row['emp'];
-							$desigEntry = $designationMap->get($employee->designation_id, []);
+							$employee = $row['emp'];
 						@endphp
 						<tr>
 							<td class="tc">{{ $sl++ }}</td>
 							<td class="tc">{{ $employee->employee_id }}</td>
 							<td>{{ $language === 'bn' && $employee->bn_name ? $employee->bn_name : $employee->name }}</td>
-							<td>{{ $desigEntry['name'] ?? 'N/A' }}</td>
-							<td class="tc">{{ $desigEntry['grade'] ?? '-' }}</td>
-							<td class="tc">{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d-M-Y') : '-' }}</td>
-
-							<td class="tr"><strong>{{ number_format($row['gross']) }}</strong></td>
+							<td>
+								{{ $designationMap->get($employee->designation_id, 'N/A') }}<br>
+								{{ $lineMap->get($employee->line_number, 'N/A') }}
+							</td>
+							<td class="tc">{{ optional($employee->joining_date)->format('d-M-Y') ?? '-' }}</td>
 
 							<td class="tr">{{ number_format($row['basic']) }}</td>
 							<td class="tr">{{ number_format($row['house']) }}</td>
 							<td class="tr">{{ number_format($row['medical']) }}</td>
-							<td class="tr">{{ number_format($row['food']) }}</td>
 							<td class="tr">{{ number_format($row['transport']) }}</td>
+							<td class="tr">{{ number_format($row['food']) }}</td>
 							<td class="tr"><strong>{{ number_format($row['salary_total']) }}</strong></td>
 
-							<td class="tc">{{ $totalMonthDays }}</td>
 							<td class="tc">{{ $row['pr'] }}</td>
-
-							<td class="tc">{{ $row['wh'] }}</td>
-							<td class="tc">{{ $row['fh'] }}</td>
-							@foreach($leaveInfos as $li)
-								<td class="tc">{{ $row['leave_' . strtoupper($li->code)] ?? 0 }}</td>
-							@endforeach
-
+							<td class="tc">{{ $row['cl'] }}</td>
+							<td class="tc">{{ $row['el'] }}</td>
+							<td class="tc">{{ $row['sl'] }}</td>
 							<td class="tc">{{ $row['ab'] }}</td>
-							<td class="tc">{{ $row['earn_days'] }}</td>
 
 							<td class="tr">{{ number_format($row['att_bonus']) }}</td>
-							<td class="tr">{{ number_format($row['deduct_absent']) }}</td>
-							<td class="tr">{{ number_format($row['loan']) }}</td>
-							<td class="tr">0</td>
-							<td class="tr">{{ number_format($row['stamp']) }}</td>
-							<td class="tr">{{ number_format($row['deduct_other']) }}</td>
-
-							<td class="tc">{{ $row['wph_days'] }}</td>
-							<td class="tr">{{ number_format($row['wph_amount']) }}</td>
-
-							<td class="tr">{{ number_format($row['other_earn']) }}</td>
-							<td class="tr"><strong>{{ number_format($row['gross']) }}</strong></td>
+							<td class="tr">{{ number_format($row['allow_other']) }}</td>
+							<td class="tr">{{ number_format($row['arrear']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['allow_total']) }}</strong></td>
 
 							<td class="tc">{{ number_format($row['ot_hours'], 2) }}</td>
 							<td class="tc">{{ number_format($row['ot_rate'], 2) }}</td>
 							<td class="tr"><strong>{{ number_format($row['ot_total']) }}</strong></td>
 
-							<td class="tr">{{ number_format($row['extra_facility']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['gross']) }}</strong></td>
+
+							<td class="tr">{{ number_format($row['deduct_absent']) }}</td>
+							<td class="tr">{{ number_format($row['deduct_other']) }}</td>
+							<td class="tr">{{ number_format($row['loan']) }}</td>
+							<td class="tr">{{ number_format($row['deduct_food']) }}</td>
+							<td class="tr">{{ number_format($row['mobile']) }}</td>
+							<td class="tr">{{ number_format($row['jr']) }}</td>
+							<td class="tr">{{ number_format($row['stamp']) }}</td>
+							<td class="tr"><strong>{{ number_format($row['deduction_total']) }}</strong></td>
+
 							<td class="tr"><strong>{{ number_format($row['net']) }}</strong></td>
 							<td></td>
 						</tr>
 					@endforeach
 
 					<tr class="sheet-sec-total">
-						<td colspan="6" class="tl">{{ $sectionMap->get($group['sec_id'], 'N/A') }} Total</td>
-						<td class="tr">{{ number_format($group['totals']['gross']) }}</td>
+						<td colspan="5" class="tl">
+							{{ $sectionMap->get($group['sec_id'], 'N/A') }} Total
+						</td>
 						<td class="tr">{{ number_format($group['totals']['basic']) }}</td>
 						<td class="tr">{{ number_format($group['totals']['house']) }}</td>
 						<td class="tr">{{ number_format($group['totals']['medical']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['food']) }}</td>
 						<td class="tr">{{ number_format($group['totals']['transport']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['food']) }}</td>
 						<td class="tr">{{ number_format($group['totals']['salary_total']) }}</td>
-						<td class="tc">{{ $totalMonthDays }}</td>
 						<td class="tc">{{ $group['totals']['pr'] }}</td>
-						<td class="tc">{{ $group['totals']['wh'] }}</td>
-						<td class="tc">{{ $group['totals']['fh'] }}</td>
-						@foreach($leaveInfos as $li)
-							<td class="tc">{{ $group['totals']['leave_' . strtoupper($li->code)] ?? 0 }}</td>
-						@endforeach
+						<td class="tc">{{ $group['totals']['cl'] }}</td>
+						<td class="tc">{{ $group['totals']['el'] }}</td>
+						<td class="tc">{{ $group['totals']['sl'] }}</td>
 						<td class="tc">{{ $group['totals']['ab'] }}</td>
-						<td class="tc">{{ $group['totals']['earn_days'] }}</td>
 						<td class="tr">{{ number_format($group['totals']['att_bonus']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['deduct_absent']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['loan']) }}</td>
-						<td class="tr">0</td>
-						<td class="tr">{{ number_format($group['totals']['stamp']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['deduct_other']) }}</td>
-						<td class="tc">{{ $group['totals']['wph_days'] }}</td>
-						<td class="tr">{{ number_format($group['totals']['wph_amount']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['other_earn']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['gross']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['allow_other']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['arrear']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['allow_total']) }}</td>
 						<td class="tc">{{ number_format($group['totals']['ot_hours'], 2) }}</td>
 						<td class="tc">{{ number_format($group['totals']['emp'] > 0 ? $group['totals']['ot_rate'] / $group['totals']['emp'] : 0, 2) }}</td>
 						<td class="tr">{{ number_format($group['totals']['ot_total']) }}</td>
-						<td class="tr">{{ number_format($group['totals']['extra_facility']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['gross']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_absent']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_other']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['loan']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduct_food']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['mobile']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['jr']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['stamp']) }}</td>
+						<td class="tr">{{ number_format($group['totals']['deduction_total']) }}</td>
 						<td class="tr">{{ number_format($group['totals']['net']) }}</td>
 						<td></td>
 					</tr>
 				@endforeach
 
 				<tr class="sheet-grand">
-					<td colspan="6" class="tl">Grand Total Amount :</td>
-					<td class="tr">{{ number_format($grand['gross']) }}</td>
+					<td colspan="5" class="tl">Grand Total Amount :</td>
 					<td class="tr">{{ number_format($grand['basic']) }}</td>
 					<td class="tr">{{ number_format($grand['house']) }}</td>
 					<td class="tr">{{ number_format($grand['medical']) }}</td>
-					<td class="tr">{{ number_format($grand['food']) }}</td>
 					<td class="tr">{{ number_format($grand['transport']) }}</td>
+					<td class="tr">{{ number_format($grand['food']) }}</td>
 					<td class="tr">{{ number_format($grand['salary_total']) }}</td>
-					<td class="tc">{{ $totalMonthDays }}</td>
 					<td class="tc">{{ $grand['pr'] }}</td>
-					<td class="tc">{{ $grand['wh'] }}</td>
-					<td class="tc">{{ $grand['fh'] }}</td>
-					@foreach($leaveInfos as $li)
-						<td class="tc">{{ $grand['leave_' . strtoupper($li->code)] ?? 0 }}</td>
-					@endforeach
+					<td class="tc">{{ $grand['cl'] }}</td>
+					<td class="tc">{{ $grand['el'] }}</td>
+					<td class="tc">{{ $grand['sl'] }}</td>
 					<td class="tc">{{ $grand['ab'] }}</td>
-					<td class="tc">{{ $grand['earn_days'] }}</td>
 					<td class="tr">{{ number_format($grand['att_bonus']) }}</td>
-					<td class="tr">{{ number_format($grand['deduct_absent']) }}</td>
-					<td class="tr">{{ number_format($grand['loan']) }}</td>
-					<td class="tr">0</td>
-					<td class="tr">{{ number_format($grand['stamp']) }}</td>
-					<td class="tr">{{ number_format($grand['deduct_other']) }}</td>
-					<td class="tc">{{ $grand['wph_days'] }}</td>
-					<td class="tr">{{ number_format($grand['wph_amount']) }}</td>
-					<td class="tr">{{ number_format($grand['other_earn']) }}</td>
-					<td class="tr">{{ number_format($grand['gross']) }}</td>
+					<td class="tr">{{ number_format($grand['allow_other']) }}</td>
+					<td class="tr">{{ number_format($grand['arrear']) }}</td>
+					<td class="tr">{{ number_format($grand['allow_total']) }}</td>
 					<td class="tc">{{ number_format($grand['ot_hours'], 2) }}</td>
 					<td class="tc">{{ number_format($grand['emp'] > 0 ? $grand['ot_rate'] / $grand['emp'] : 0, 2) }}</td>
 					<td class="tr">{{ number_format($grand['ot_total']) }}</td>
-					<td class="tr">{{ number_format($grand['extra_facility']) }}</td>
+					<td class="tr">{{ number_format($grand['gross']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_absent']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_other']) }}</td>
+					<td class="tr">{{ number_format($grand['loan']) }}</td>
+					<td class="tr">{{ number_format($grand['deduct_food']) }}</td>
+					<td class="tr">{{ number_format($grand['mobile']) }}</td>
+					<td class="tr">{{ number_format($grand['jr']) }}</td>
+					<td class="tr">{{ number_format($grand['stamp']) }}</td>
+					<td class="tr">{{ number_format($grand['deduction_total']) }}</td>
 					<td class="tr">{{ number_format($grand['net']) }}</td>
 					<td></td>
 				</tr>
