@@ -120,6 +120,16 @@ class HrReportController extends Controller
         return view('hr::reports.index', compact('reports'));
     }
 
+    public function attendanceWithOt(Request $request)
+    {
+        return $this->attendanceWithOtReportScreen($request, 'attendance-with-ot');
+    }
+
+    public function monthlyLateReport(Request $request)
+    {
+        return $this->monthlyLateReportScreen($request, 'monthly-late-report');
+    }
+
     public function show(string $report, Request $request)
     {
         abort_unless(array_key_exists($report, config('hr.reports', [])), 404);
@@ -142,6 +152,14 @@ class HrReportController extends Controller
 
         if ($report === 'attendance-report') {
             return $this->attendanceReportScreen($request, $report);
+        }
+
+        if ($report === 'monthly-late-report') {
+            return $this->monthlyLateReportScreen($request, $report);
+        }
+
+        if ($report === 'daily-manpower-report') {
+            return $this->dailyManpowerReportScreen($request, $report);
         }
 
         if ($report === 'meal-report') {
@@ -193,6 +211,7 @@ class HrReportController extends Controller
             'recruitment' => 'Recruitment',
             'migration' => 'Migration',
             'long-absent' => 'Long Absent',
+            'monthly-late-report' => 'Monthly Late Report',
             'increment' => 'Increment',
             'increment-summary' => 'Increment Report',
         ];
@@ -222,6 +241,10 @@ class HrReportController extends Controller
         };
 
         if ($request->boolean('print')) {
+            if ($reportType === 'monthly-late-report') {
+                return $this->monthlyLateReportScreen($request, 'monthly-late-report');
+            }
+
             return view('hr::reports.monthly-print', [
                 'reportKey' => $report,
                 'reportTitle' => config('hr.reports.' . $report),
@@ -777,6 +800,7 @@ class HrReportController extends Controller
             } elseif ($reportType === 'manpower-summary') {
                 $manpowerRows = $this->employeeManpowerSummaryRows($employees, $options);
                 return view('hr::reports.employee-manpower-print', [
+                    'employees' => $employees,
                     'manpowerRows' => $manpowerRows,
                     'request' => $request,
                     'options' => $options,
@@ -1666,11 +1690,14 @@ class HrReportController extends Controller
             'H'  => 'Holiday',
             'W'  => 'Weekend',
             'OT' => 'OT Only',
+            'PM' => 'Attendance Missing',
+            'AS' => 'Attendance Status',
         ];
 
         if ($request->boolean('print')) {
             $from = $request->input('from') ?: now()->startOfMonth()->toDateString();
             $to   = $request->input('to')   ?: now()->toDateString();
+            $type = strtoupper((string) $request->input('att_type', ''));
 
             $employees = $this->employeeReportQuery($request)
                 ->orderBy('section_id')
@@ -1704,7 +1731,6 @@ class HrReportController extends Controller
             });
 
             if ($request->filled('att_type')) {
-                $type = strtoupper((string) $request->input('att_type'));
                 $employees = $employees->filter(function ($employee) use ($attendanceByEmployee, $type) {
                     $row     = $attendanceByEmployee->get($employee->id, []);
                     $present = $row['present'] ?? 0;
@@ -1731,8 +1757,202 @@ class HrReportController extends Controller
             // designation_id on users references hr_designations table
             $designationMap = Designation::query()->pluck('name', 'id');
             $shiftMap       = Shift::query()->pluck('name_of_shift', 'id');
+            $lineMap = collect($options['lines'] ?? [])->mapWithKeys(fn ($row) => [
+                $row->id => trim(($row->name ?? '') . (filled($row->slug ?? null) ? ' - ' . $row->slug : '')),
+            ]);
+            $workingPlaceMap = collect($options['workingPlaces'] ?? [])->pluck('name', 'id');
 
             $dateLabel = \Carbon\Carbon::parse($from)->format('d-M-Y') . ' to ' . \Carbon\Carbon::parse($to)->format('d-M-Y');
+
+            if ($type === 'A') {
+                $fromDate = \Carbon\Carbon::parse($from)->toDateString();
+                $toDate = \Carbon\Carbon::parse($to)->toDateString();
+                $isSingleDay = $fromDate === $toDate;
+
+                if ($isSingleDay) {
+                    $dailySummary = $employees->mapWithKeys(function ($employee) use ($toDate) {
+                        $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate($employee->id, $toDate, $toDate);
+                        $summary = $pack['summary'] ?? [];
+
+                        return [$employee->id => [
+                            'absent' => (int) ($summary['totalAbsent'] ?? 0),
+                        ]];
+                    });
+
+                    $employees = $employees
+                        ->filter(fn ($employee) => (($dailySummary->get($employee->id, [])['absent'] ?? 0) > 0))
+                        ->values();
+
+                    $attendanceMap = \ME\Hr\Models\Attendance::query()
+                        ->whereIn('user_id', $employees->pluck('id'))
+                        ->whereDate('date', $toDate)
+                        ->get()
+                        ->keyBy('user_id');
+
+                    $rows = $employees->map(function ($employee) use ($attendanceMap, $designationMap, $lineMap, $workingPlaceMap, $toDate) {
+                        $attendance = $attendanceMap->get($employee->id);
+
+                        $other = is_array($employee->other_information)
+                            ? $employee->other_information
+                            : json_decode($employee->other_information ?? '{}', true);
+                        $profile = data_get($other, 'profile', []);
+                        $workingPlaceId = data_get($profile, 'working_place_id') ?? $employee->working_place_id;
+
+                        return [
+                            'section_id' => $employee->section_id,
+                            'employee_id' => $employee->employee_id,
+                            'name' => $employee->name,
+                            'designation' => $designationMap->get($employee->designation_id, 'N/A'),
+                            'floor' => $workingPlaceMap->get($workingPlaceId, 'N/A'),
+                            'line' => $lineMap->get($employee->line_number, 'N/A'),
+                            'date' => $toDate,
+                            'in_time' => $attendance->in_time ?? '0',
+                            'out_time' => $attendance->out_time ?? '0',
+                        ];
+                    })->values();
+                } else {
+                    $rows = collect();
+
+                    foreach ($employees as $employee) {
+                        $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate($employee->id, $fromDate, $toDate);
+                        $attendanceRows = collect($pack['attendance'] ?? []);
+
+                        $other = is_array($employee->other_information)
+                            ? $employee->other_information
+                            : json_decode($employee->other_information ?? '{}', true);
+                        $profile = data_get($other, 'profile', []);
+                        $workingPlaceId = data_get($profile, 'working_place_id') ?? $employee->working_place_id;
+
+                        $absentRows = $attendanceRows
+                            ->filter(fn ($row) => strtolower((string) data_get($row, 'status_key', '')) === 'absent')
+                            ->map(function ($row) use ($employee, $designationMap, $lineMap, $workingPlaceMap, $workingPlaceId) {
+                                $rawDate = (string) data_get($row, 'date', '');
+                                try {
+                                    $date = \Carbon\Carbon::createFromFormat('d-m-Y', $rawDate)->toDateString();
+                                } catch (\Throwable $e) {
+                                    $date = null;
+                                }
+
+                                return [
+                                    'section_id' => $employee->section_id,
+                                    'employee_id' => $employee->employee_id,
+                                    'name' => $employee->name,
+                                    'designation' => $designationMap->get($employee->designation_id, 'N/A'),
+                                    'floor' => $workingPlaceMap->get($workingPlaceId, 'N/A'),
+                                    'line' => $lineMap->get($employee->line_number, 'N/A'),
+                                    'date' => $date,
+                                    'in_time' => data_get($row, 'in_time', '0'),
+                                    'out_time' => data_get($row, 'out_time', '0'),
+                                ];
+                            })
+                            ->filter(fn ($row) => !empty($row['date']));
+
+                        $rows = $rows->merge($absentRows);
+                    }
+
+                    $rows = $rows
+                        ->sortBy(function ($row) {
+                            return sprintf(
+                                '%s|%s|%s',
+                                (string) data_get($row, 'section_id', ''),
+                                (string) data_get($row, 'date', ''),
+                                (string) data_get($row, 'name', '')
+                            );
+                        })
+                        ->values();
+                }
+
+                return view('hr::reports.absent-report-print', compact(
+                    'request', 'rows', 'sectionMap', 'fromDate', 'toDate', 'isSingleDay'
+                ));
+            }
+
+            if ($type === 'PM') {
+                $attendanceRecords = \ME\Hr\Models\Attendance::query()
+                    ->whereIn('user_id', $employees->pluck('id'))
+                    ->whereBetween('date', [$from, $to])
+                    ->where(function($query) {
+                        $query->whereNull('in_time')
+                              ->orWhereNull('out_time');
+                    })
+                    ->orderBy('date', 'asc')
+                    ->get();
+
+                if ($attendanceRecords->isEmpty()) {
+                    $attendanceRecords = collect();
+                }
+
+                $employeeMap = $employees->keyBy('id');
+                $attendanceBySection = $attendanceRecords->groupBy(function ($record) use ($employeeMap) {
+                    $emp = $employeeMap->get($record->user_id);
+                    return $emp ? $emp->section_id : 'unknown';
+                });
+
+                return view('hr::reports.attendance-missing-report-print', compact(
+                    'request', 'employees', 'attendanceRecords', 'attendanceBySection', 'sectionMap',
+                    'designationMap', 'lineMap', 'workingPlaceMap', 'employeeMap', 'from', 'to'
+                ));
+            }
+
+            if ($type === 'AS') {
+                $days = collect();
+                $cursor = \Carbon\Carbon::parse($from)->startOfDay();
+                $end = \Carbon\Carbon::parse($to)->startOfDay();
+                while ($cursor->lte($end)) {
+                    $days->push($cursor->copy()->toDateString());
+                    $cursor->addDay();
+                }
+
+                $attendanceStatusByEmployee = $employees->mapWithKeys(function ($employee) use ($from, $to) {
+                    $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate($employee->id, $from, $to);
+                    $rows = collect($pack['attendance'] ?? []);
+
+                    $statusByDate = [];
+                    $totalP = 0;
+                    $totalHD = 0;
+                    $totalL = 0;
+
+                    foreach ($rows as $row) {
+                        try {
+                            $dateKey = \Carbon\Carbon::createFromFormat('d-m-Y', (string) data_get($row, 'date'))->format('Y-m-d');
+                        } catch (\Throwable $e) {
+                            continue;
+                        }
+
+                        $statusKey = strtolower((string) data_get($row, 'status_key', ''));
+                        $code = 'A';
+
+                        if ($statusKey === 'leave') {
+                            $code = 'L';
+                            $totalL++;
+                        } elseif ($statusKey === 'holiday' || $statusKey === 'weekend') {
+                            $code = 'HD';
+                            $totalHD++;
+                        } elseif ($statusKey === 'absent') {
+                            $code = 'A';
+                        } else {
+                            // Treat present-like statuses (present/late/pm/eo/etc.) as present for this matrix.
+                            $code = 'P';
+                            $totalP++;
+                        }
+
+                        $statusByDate[$dateKey] = $code;
+                    }
+
+                    return [
+                        $employee->id => [
+                            'status_by_date' => $statusByDate,
+                            'p' => $totalP,
+                            'hd' => $totalHD,
+                            'l' => $totalL,
+                        ],
+                    ];
+                });
+
+                return view('hr::reports.attendance-status-report-print', compact(
+                    'request', 'employees', 'from', 'to', 'sectionMap', 'days', 'attendanceStatusByEmployee'
+                ));
+            }
 
             return view('hr::reports.attendance-report-print', compact(
                 'request', 'employees', 'from', 'to',
@@ -1746,6 +1966,305 @@ class HrReportController extends Controller
             'options'          => $options,
             'attendanceTypes'  => $attendanceTypes,
             'request'          => $request,
+        ]);
+    }
+
+    private function attendanceWithOtReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+
+        if ($request->boolean('print')) {
+            $reportDate = (string) ($request->input('date') ?: now()->toDateString());
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
+            $designationMap = collect($options['designations'] ?? [])->pluck('name', 'id');
+
+            $attendanceByUser = \ME\Hr\Models\Attendance::query()
+                ->whereIn('user_id', $employees->pluck('id'))
+                ->whereDate('date', $reportDate)
+                ->get()
+                ->keyBy('user_id');
+
+            $englishRequest = clone $request;
+            $englishRequest->merge([
+                'language' => 'en',
+            ]);
+            $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee(null, $englishRequest, null, null, null, null); 
+
+            $rows = $employees->map(function ($employee) use ($request, $attendanceByUser, $employeeDataFn, $sectionMap, $designationMap, $reportDate) {
+                $att = $attendanceByUser->get($employee->id);
+
+                $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate(
+                    $employee->id,
+                    $reportDate,
+                    $reportDate
+                );
+                $summary = $pack['summary'] ?? [];
+                $attendanceRow = collect($pack['attendance'] ?? [])->first();
+
+                $employeeData = $employeeDataFn($employee, $request ?? null, null, null, null, null);
+
+                $late = (int) (($summary['totalLate'] ?? 0)
+                    + ($summary['totalLEO'] ?? 0)
+                    + ($summary['totalLPM'] ?? 0));
+
+                $status = (string) ($att->status ?? data_get($attendanceRow, 'status', ''));
+                if ($status === '') {
+                    $status = $att && $att->in_time ? 'P' : 'A';
+                }
+
+                $otHours = (float) ($att->compliance_ot ?? data_get($attendanceRow, 'compliance_ot', 0));
+                return [
+                    'section_id' => $employee->section_id,
+                    'section' => $employeeData['section'] ?? $sectionMap->get($employee->section_id, 'N/A'),
+                    'card_no' => $employee->employee_id,
+                    'name' => $employeeData['employee_name'] ?? $employee->name,
+                    'designation' => $employeeData['designation'] ?? $designationMap->get($employee->designation_id, 'N/A'),
+                    'in_time' => $att->in_time ?? data_get($attendanceRow, 'in_time'),
+                    'out_time' => $att->out_time ?? data_get($attendanceRow, 'out_time'),
+                    'late' => $late,
+                    'ot_hours' => $otHours,
+                    'status' => strtoupper((string) $status),
+                ];
+            });
+
+            return view('hr::reports.attendance-with-ot-print', [
+                'request' => $request,
+                'rows' => $rows,
+                'reportDate' => $reportDate,
+            ]);
+        }
+
+        return view('hr::reports.attendance-with-ot', [
+            'reportKey' => $report,
+            'reportTitle' => config('hr.reports.' . $report),
+            'options' => $options,
+            'request' => $request,
+        ]);
+    }
+
+    private function monthlyLateReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+
+        if ($request->boolean('print')) {
+            $from = (string) ($request->input('from') ?: now()->startOfMonth()->toDateString());
+            $to = (string) ($request->input('to') ?: now()->endOfMonth()->toDateString());
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $employeeDataFn = \App\Services\HrOptionsService::getOptionsForEmployee();
+            $shiftMap = Shift::query()->get(['id', 'name_of_shift', 'shift_starting_time', 'red_marking_on'])->keyBy('id');
+
+            $lateByEmployee = collect();
+
+            foreach ($employees as $employee) {
+                $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate($employee->id, $from, $to);
+                $attendanceRows = collect($pack['attendance'] ?? []);
+
+                $employeeData = $employeeDataFn($employee, $request ?? null, null, null, null, null);
+                $shift = $shiftMap->get($employee->shift_id);
+
+                $lateRows = $attendanceRows
+                    ->filter(function ($row) {
+                        return in_array((string) data_get($row, 'status_key', ''), [
+                            'late',
+                            'late_and_early_exit',
+                            'late_and_punch_missing',
+                        ], true);
+                    })
+                    ->map(function ($row) use ($shift, $shiftMap) {
+                        $inTimeRaw = (string) data_get($row, 'in_time', '');
+                        $outTimeRaw = (string) data_get($row, 'out_time', '');
+                        $dateRaw = (string) data_get($row, 'date', '');
+                        $rowShiftId = data_get($row, 'shift_id');
+                        $rowShift = $rowShiftId ? $shiftMap->get($rowShiftId) : null;
+                        $effectiveShift = $rowShift ?: $shift;
+
+                        $dateObj = null;
+                        try {
+                            $dateObj = Carbon::createFromFormat('d-m-Y', $dateRaw);
+                        } catch (\Throwable $e) {
+                            return null;
+                        }
+
+                        $lateMinute = 0;
+                        if ($inTimeRaw !== '' && $inTimeRaw !== '-') {
+                            try {
+                                $inClock = Carbon::parse($inTimeRaw)->format('H:i:s');
+                                $inTime = Carbon::parse($dateObj->format('Y-m-d') . ' ' . $inClock);
+
+                                $lateStart = null;
+                                if ($effectiveShift && filled($effectiveShift->red_marking_on)) {
+                                    $lateCutoffClock = Carbon::parse((string) $effectiveShift->red_marking_on)->format('H:i:s');
+                                    $lateStart = Carbon::parse($dateObj->format('Y-m-d') . ' ' . $lateCutoffClock);
+                                } elseif ($effectiveShift && filled($effectiveShift->shift_starting_time)) {
+                                    $shiftStartClock = Carbon::parse((string) $effectiveShift->shift_starting_time)->format('H:i:s');
+                                    $lateStart = Carbon::parse($dateObj->format('Y-m-d') . ' ' . $shiftStartClock);
+                                }
+
+                                if ($lateStart) {
+                                    if ($inTime->greaterThan($lateStart)) {
+                                        $lateMinute = $lateStart->diffInMinutes($inTime);
+                                    }
+                                }
+                            } catch (\Throwable $e) {
+                                $lateMinute = 0;
+                            }
+                        }
+
+                        return [
+                            'date' => $dateObj->format('d/m/Y'),
+                            'shift' => $effectiveShift->name_of_shift ?? '-',
+                            'in_time' => ($inTimeRaw !== '' && $inTimeRaw !== '-') ? Carbon::parse($inTimeRaw)->format('h:i:sA') : '-',
+                            'out_time' => ($outTimeRaw !== '' && $outTimeRaw !== '-') ? Carbon::parse($outTimeRaw)->format('h:i:sA') : '-',
+                            'late_minute' => $lateMinute,
+                        ];
+                    })
+                    ->filter()
+                    ->values();
+
+                if ($lateRows->isEmpty()) {
+                    continue;
+                }
+
+                $lateByEmployee->push([
+                    'section_id' => $employee->section_id,
+                    'section' => $employeeData['section'] ?? 'N/A',
+                    'card_no' => $employee->employee_id,
+                    'name' => $employeeData['employee_name'] ?? $employee->name,
+                    'designation' => $employeeData['designation'] ?? 'N/A',
+                    'doj' => $employee->joining_date,
+                    'late_rows' => $lateRows,
+                    'total_late_days' => $lateRows->count(),
+                ]);
+            }
+
+            return view('hr::reports.monthly-late-report-print', [
+                'request' => $request,
+                'from' => $from,
+                'to' => $to,
+                'lateBySection' => $lateByEmployee->groupBy('section_id'),
+            ]);
+        }
+
+        return view('hr::reports.monthly-late-report', [
+            'reportKey' => $report,
+            'reportTitle' => config('hr.reports.' . $report),
+            'options' => $options,
+            'request' => $request,
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // DAILY MANPOWER REPORT (NAME WISE)
+    // ──────────────────────────────────────────────────────────────────
+
+    private function dailyManpowerReportScreen(Request $request, string $report)
+    {
+        $options = $this->employeeReportOptions();
+
+        if ($request->boolean('print')) {
+            $reportDate = (string) ($request->input('date') ?: now()->toDateString());
+
+            $employees = $this->employeeReportQuery($request)
+                ->orderBy('section_id')
+                ->orderBy('name')
+                ->get();
+
+            $sectionMap = collect($options['sections'] ?? [])->pluck('name', 'id');
+            $rows = collect();
+
+            $grand = [
+                'female' => 0,
+                'male' => 0,
+                'manpower_total' => 0,
+                'leave' => 0,
+                'present' => 0,
+                'present_total' => 0,
+                'absent' => 0,
+                'others_total' => 0,
+            ];
+
+            $employees->groupBy('section_id')->each(function ($sectionEmployees, $sectionId) use (&$rows, &$grand, $sectionMap, $reportDate) {
+                $female = 0;
+                $male = 0;
+                $leave = 0;
+                $present = 0;
+                $absent = 0;
+
+                foreach ($sectionEmployees as $employee) {
+                    $gender = strtolower(trim((string) ($employee->gender ?? $employee->sex ?? '')));
+                    if (in_array($gender, ['female', 'f'], true)) {
+                        $female++;
+                    } else {
+                        $male++;
+                    }
+
+                    $pack = \App\Services\EmployeeAttendanceService::getEmployeeAttendanceByDate(
+                        $employee->id,
+                        $reportDate,
+                        $reportDate
+                    );
+                    $summary = $pack['summary'] ?? [];
+
+                    $present += (int) (($summary['totalPresent'] ?? 0)
+                        + ($summary['totalLate'] ?? 0)
+                        + ($summary['totalEO'] ?? 0)
+                        + ($summary['totalPM'] ?? 0)
+                        + ($summary['totalLEO'] ?? 0)
+                        + ($summary['totalLPM'] ?? 0));
+                    $leave += (int) ($summary['totalLeave'] ?? 0);
+                    $absent += (int) ($summary['totalAbsent'] ?? 0);
+                }
+
+                $manpowerTotal = $female + $male;
+                $presentTotal = $leave + $present;
+                $othersTotal = $absent;
+
+                $rows->push([
+                    'section' => $sectionMap->get($sectionId, 'N/A'),
+                    'female' => $female,
+                    'male' => $male,
+                    'manpower_total' => $manpowerTotal,
+                    'leave' => $leave,
+                    'present' => $present,
+                    'present_total' => $presentTotal,
+                    'absent' => $absent,
+                    'others_total' => $othersTotal,
+                ]);
+
+                $grand['female'] += $female;
+                $grand['male'] += $male;
+                $grand['manpower_total'] += $manpowerTotal;
+                $grand['leave'] += $leave;
+                $grand['present'] += $present;
+                $grand['present_total'] += $presentTotal;
+                $grand['absent'] += $absent;
+                $grand['others_total'] += $othersTotal;
+            });
+
+            return view('hr::reports.daily-manpower-report-print', [
+                'request' => $request,
+                'rows' => $rows,
+                'reportDate' => $reportDate,
+                'grand' => $grand,
+            ]);
+        }
+
+        return view('hr::reports.daily-manpower-report', [
+            'reportKey'   => $report,
+            'reportTitle' => config('hr.reports.' . $report),
+            'options'     => $options,
+            'request'     => $request,
         ]);
     }
 

@@ -268,6 +268,27 @@ return [
                             'permission' => 'hr_attendance_report',
                         ],
                         [
+                            'title'      => 'Attendance Report With OT',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/reports/attendance-with-ot',
+                            'icon_color' => 'text-success',
+                            'permission' => 'hr_attendance_with_ot_report',
+                        ],
+                        [
+                            'title'      => 'Monthly Late Report',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/reports/monthly-late-report',
+                            'icon_color' => 'text-success',
+                            'permission' => 'hr_monthly_late_report',
+                        ],
+                        [
+                            'title'      => 'Daily Manpower Report',
+                            'icon'       => 'fa-solid fa-arrow-right',
+                            'route'      => '/admin/hr-center/reports/daily-manpower-report',
+                            'icon_color' => 'text-success',
+                            'permission' => 'hr_daily_manpower_report',
+                        ],
+                        [
                             'title'      => 'Tiffin / Diner / Night',
                             'icon'       => 'fa-solid fa-arrow-right',
                             'route'      => '/admin/hr-center/reports/meal-report',

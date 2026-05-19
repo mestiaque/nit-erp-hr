@@ -53,6 +53,8 @@ Route::middleware($route['middleware'] ?? ['web'])
 		Route::get('/reports/pro-job-card', [HrReportController::class, 'proJobCard'])->name('reports.pro-job-card');
 		// Individual Pay Slip Report (like Job Card)
 		Route::get('/reports/individual-pay-slip', [HrReportController::class, 'individualPaySlipReport'])->name('reports.individual-pay-slip');
+		Route::get('/reports/attendance-with-ot', [HrReportController::class, 'attendanceWithOt'])->name('reports.attendance-with-ot');
+		Route::get('/reports/monthly-late-report', [HrReportController::class, 'monthlyLateReport'])->name('reports.monthly-late-report');
 		Route::get('/reports', [HrReportController::class, 'index'])->name('reports.index');
 		Route::get('/reports/{report}', [HrReportController::class, 'show'])->name('reports.show');
 		Route::post('/reports/monthly/lock-increment', [HrReportController::class, 'lockMonthlyIncrement'])->name('reports.monthly.lock-increment');
